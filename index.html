@@ -95,7 +95,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-lg tracking-wide">智能热敏小票排版设计器</h1>
-                <p class="text-xs text-slate-400">Smart Receipt Studio v2.6</p>
+                <p class="text-xs text-slate-400">Smart Receipt Studio v3.0 (智能双引擎版)</p>
             </div>
         </div>
         
@@ -254,7 +254,38 @@
         </aside>
 
         <!-- 2. 中间：画布工作区 -->
-        <main class="flex-1 overflow-y-auto bg-slate-100 flex justify-center py-10 px-4 relative">
+        <main class="flex-1 overflow-y-auto bg-slate-100 flex flex-col items-center py-6 px-4 relative">
+            
+            <!-- 🎨 全局版面样式变幻快捷栏 (新增：解决千篇一律需求) -->
+            <div class="no-print max-w-xl w-full bg-slate-800 text-white rounded-2xl p-4 mb-6 shadow-xl flex flex-col space-y-3 border border-slate-700">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold text-slate-400 flex items-center">
+                        <i data-lucide="palette" class="w-4 h-4 mr-1 text-blue-400"></i>
+                        全局版面风格换装引擎
+                    </span>
+                    <button onclick="shuffleCurrentLayout()" class="px-3 py-1.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-lg text-xs font-bold flex items-center space-x-1 transition shadow shadow-rose-500/20 active:scale-95">
+                        <i data-lucide="dices" class="w-4 h-4 animate-spin"></i>
+                        <span>🎲 随机打乱版式布局</span>
+                    </button>
+                </div>
+                
+                <!-- 预设排版主题 -->
+                <div class="grid grid-cols-4 gap-2 text-xs">
+                    <button onclick="applyGlobalTheme('classic')" class="px-2.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition border border-slate-600 text-center font-medium">
+                        📼 复古针式
+                    </button>
+                    <button onclick="applyGlobalTheme('minimalist')" class="px-2.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition border border-slate-600 text-center font-medium">
+                        🌱 现代极简
+                    </button>
+                    <button onclick="applyGlobalTheme('elegant')" class="px-2.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition border border-slate-600 text-center font-medium">
+                        💎 尊贵轻奢
+                    </button>
+                    <button onclick="applyGlobalTheme('compact')" class="px-2.5 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition border border-slate-600 text-center font-medium">
+                        ⚡ 极限省纸
+                    </button>
+                </div>
+            </div>
+
             <div class="max-w-xl w-full flex flex-col items-center">
                 <!-- 尺标提示 -->
                 <div class="no-print w-full flex justify-between items-center mb-3 text-xs text-slate-400">
@@ -523,7 +554,20 @@
                     </div>
                 </div>
 
-                <!-- 模板 2 -->
+                <!-- 模板 2 (新：完美还原 bd51e9) -->
+                <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('restaurant_preview')">
+                    <div>
+                        <div class="bg-amber-50 text-amber-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">餐饮高级</div>
+                        <h4 class="font-bold text-sm text-slate-800">"xxx饭店" 消费预览单</h4>
+                        <p class="text-xs text-slate-500 mt-1">完美对应上传的最新 bd51e9 小票！包含餐桌人数、多级价格明细汇总及出票人员盖章格局。</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-amber-600">
+                        <span>立即应用</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+
+                <!-- 模板 3 -->
                 <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('clothes')">
                     <div>
                         <div class="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">服装零售</div>
@@ -536,7 +580,7 @@
                     </div>
                 </div>
 
-                <!-- 模板 3 -->
+                <!-- 模板 4 -->
                 <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('market')">
                     <div>
                         <div class="bg-emerald-50 text-emerald-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">超市收银</div>
@@ -549,7 +593,7 @@
                     </div>
                 </div>
 
-                <!-- 模板 4 -->
+                <!-- 模板 5 -->
                 <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('blank')">
                     <div>
                         <div class="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">全新设计</div>
@@ -602,7 +646,7 @@
         // 默认初始化加载餐饮结账单
         window.onload = function() {
             lucide.createIcons();
-            loadTemplate('restaurant');
+            loadTemplate('restaurant_preview'); // 初始化直接展示最新的 bd51e9 模板给用户体验
         };
 
         // 触发自适应 Toast
@@ -781,7 +825,7 @@
             reader.readAsDataURL(file);
         }
 
-        // 模拟 PDF 占位符上传 (展示型)
+        // 模拟 PDF 占位符上传
         function addMockPdfPlaceholder() {
             const mockUrl = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23fee2e2'/><text x='50' y='55' font-size='12' font-family='Arial' fill='%23b91c1c' text-anchor='middle'>PDF LOGO</text></svg>";
             const newEl = createNewElement('image', mockUrl);
@@ -803,11 +847,10 @@
             }
         }
 
-        // 选中某一个元素节点并渲染其属性控制
+        // 选中元素节点并加载属性
         function selectElement(id) {
             selectedElementId = id;
             
-            // 样式高亮处理
             const cards = document.querySelectorAll('.receipt-card');
             cards.forEach(card => {
                 if (card.getAttribute('data-id') === id) {
@@ -817,30 +860,25 @@
                 }
             });
 
-            // 获取元素并渲染控制面板
             const el = receiptElements.find(item => item.id === id);
             if (!el) {
                 hideAllPanels();
                 return;
             }
 
-            // 更新右上角 Badge
             const badge = document.getElementById('selected-type-badge');
             badge.textContent = el.type.toUpperCase();
             badge.classList.remove('hidden');
 
-            // 显示控制区基础设置
             document.getElementById('panel-empty-state').classList.add('hidden');
             document.getElementById('panel-actions-wrapper').classList.remove('hidden');
 
-            // 隐藏所有特定类型面板
             document.getElementById('panel-editor-text').classList.add('hidden');
             document.getElementById('panel-editor-line').classList.add('hidden');
             document.getElementById('panel-editor-code').classList.add('hidden');
             document.getElementById('panel-editor-table').classList.add('hidden');
             document.getElementById('panel-editor-image').classList.add('hidden');
 
-            // 依据类型开启对应面板
             if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
                 document.getElementById('panel-editor-text').classList.remove('hidden');
                 document.getElementById('prop-text-content').value = el.value;
@@ -848,7 +886,6 @@
                 document.getElementById('prop-text-weight').value = el.weight;
                 document.getElementById('prop-text-extra-spacing').checked = el.extraSpacing;
                 
-                // 激活对齐方式状态按钮
                 document.getElementById('btn-align-left').className = el.align === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
                 document.getElementById('btn-align-center').className = el.align === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
                 document.getElementById('btn-align-right').className = el.align === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
@@ -889,7 +926,6 @@
                 }
                 document.getElementById('prop-table-calc-label').value = el.tableCalcLabel || "应收合计:";
 
-                // 智能初始化右侧的“随机生成配置”，回显该表格的参数
                 let totalSum = 0;
                 const headers = el.tableHeaders.split(',');
                 const priceColIdx = headers.length - 1;
@@ -897,19 +933,16 @@
                     const priceVal = parseFloat(row[priceColIdx]);
                     if (!isNaN(priceVal)) totalSum += priceVal;
                 });
-                if (totalSum <= 0) totalSum = 180; // 默认容错兜底
+                if (totalSum <= 0) totalSum = 180;
 
                 document.getElementById('prop-table-gen-total').value = Math.round(totalSum);
                 document.getElementById('prop-table-gen-count').value = el.tableRows.length || 3;
 
-                // 智能猜测场景风格
                 let guessedTheme = 'restaurant';
                 if (el.tableHeaders.includes("货号品项")) {
                     guessedTheme = "clothes";
                 } else if (el.tableHeaders.includes("商品名称")) {
                     guessedTheme = "market";
-                } else if (el.tableRows.some(row => PRODUCT_THEMES.electronics.includes(row[0]))) {
-                    guessedTheme = "electronics";
                 }
                 document.getElementById('prop-table-gen-theme').value = guessedTheme;
                 
@@ -935,7 +968,7 @@
             selectedElementId = null;
         }
 
-        // 从控制台更新选中元素并重新渲染
+        // 属性变动更新
         function updateSelectedElement() {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
@@ -970,7 +1003,6 @@
             if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
         }
 
-        // 修改文字对齐方式
         function setAlign(alignment) {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
@@ -983,7 +1015,6 @@
             }
         }
 
-        // 调整元素排版位置 (上移/下移)
         function moveCurrentElement(direction) {
             if (!selectedElementId) return;
             const index = receiptElements.findIndex(item => item.id === selectedElementId);
@@ -1004,7 +1035,6 @@
             }
         }
 
-        // 删除选中的元素节点
         function deleteCurrentElement() {
             if (!selectedElementId) return;
             receiptElements = receiptElements.filter(item => item.id !== selectedElementId);
@@ -1013,7 +1043,6 @@
             showToast('已删除该行组件');
         }
 
-        // 清空小票
         function confirmClearReceipt() {
             if (receiptElements.length === 0) {
                 showToast('画布本身已是空态');
@@ -1023,6 +1052,122 @@
             hideAllPanels();
             renderReceipt();
             showToast('画布已重置为空白状态');
+        }
+
+
+        /* ================== 🎨 新增：智能排版风格主题换装引擎 ================== */
+        
+        // 预设主题配置
+        const THEME_RULES = {
+            classic: {
+                h1Size: 26, h2Size: 18, textSize: 13,
+                h1Weight: 'bold', textWeight: 'normal',
+                align: 'center', extraSpacing: false,
+                lineStyle: 'dashed', barcodeHeight: 45
+            },
+            minimalist: {
+                h1Size: 22, h2Size: 15, textSize: 12,
+                h1Weight: 'bold', textWeight: 'normal',
+                align: 'left', extraSpacing: false,
+                lineStyle: 'solid', barcodeHeight: 35
+            },
+            elegant: {
+                h1Size: 28, h2Size: 19, textSize: 14,
+                h1Weight: 'bold', textWeight: 'normal',
+                align: 'center', extraSpacing: true,
+                lineStyle: 'double', barcodeHeight: 50
+            },
+            compact: {
+                h1Size: 20, h2Size: 14, textSize: 11,
+                h1Weight: 'bold', textWeight: 'normal',
+                align: 'left', extraSpacing: false,
+                lineStyle: 'dashed', barcodeHeight: 28
+            }
+        };
+
+        // 应用特定排版风格
+        function applyGlobalTheme(themeName) {
+            const rules = THEME_RULES[themeName];
+            if (!rules) return;
+
+            receiptElements.forEach(el => {
+                if (el.type === 'h1') {
+                    el.size = rules.h1Size;
+                    el.weight = rules.h1Weight;
+                    el.align = rules.align;
+                    el.extraSpacing = rules.extraSpacing;
+                } else if (el.type === 'h2') {
+                    el.size = rules.h2Size;
+                    el.weight = 'bold';
+                    el.align = rules.align;
+                    el.extraSpacing = rules.extraSpacing;
+                } else if (el.type === 'text') {
+                    el.size = rules.textSize;
+                    el.weight = rules.textWeight;
+                    // 订单正文类普通信息：如果是极简或省纸模式则左对齐，其它保持
+                    if (rules.align === 'left') {
+                        el.align = 'left';
+                    }
+                    el.extraSpacing = rules.extraSpacing;
+                } else if (el.type === 'line') {
+                    el.lineStyle = rules.lineStyle;
+                } else if (el.type === 'barcode') {
+                    el.barcodeHeight = rules.barcodeHeight;
+                }
+            });
+
+            renderReceipt();
+            // 如果有正在编辑的，重塑其属性展示
+            if (selectedElementId) {
+                selectElement(selectedElementId);
+            }
+            showToast(`已成功套用 "${themeName === 'classic' ? '复古针式' : themeName === 'minimalist' ? '现代极简' : themeName === 'elegant' ? '尊贵轻奢' : '极限省纸'}" 视觉风格！`);
+        }
+
+        // 🎲 核心新增：一键随机打乱/变幻排版 (彻底规避千篇一律)
+        function shuffleCurrentLayout() {
+            if (receiptElements.length === 0) {
+                showToast('当前画布无组件，请先加载一个经典模板！', true);
+                return;
+            }
+
+            const alignStyles = ['left', 'center', 'right'];
+            const lineStyles = ['dashed', 'solid', 'double'];
+            
+            receiptElements.forEach(el => {
+                // 1. 随机打乱文本、标题组件
+                if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
+                    // 随机对齐方式
+                    el.align = alignStyles[Math.floor(Math.random() * alignStyles.length)];
+                    // 随机微调字号大小 (安全阈值区间)
+                    const baseSize = el.type === 'h1' ? 24 : (el.type === 'h2' ? 17 : 13);
+                    el.size = baseSize + (Math.floor(Math.random() * 5) - 2); // 随机 -2px 到 +2px
+                    // 随机字距舒张
+                    el.extraSpacing = Math.random() > 0.5;
+                    // 随机字重
+                    if (el.type === 'text') {
+                        el.weight = Math.random() > 0.8 ? 'bold' : 'normal';
+                    }
+                } 
+                // 2. 随机打乱分割线
+                else if (el.type === 'line') {
+                    el.lineStyle = lineStyles[Math.floor(Math.random() * lineStyles.length)];
+                }
+                // 3. 随机微调组件类高度
+                else if (el.type === 'barcode') {
+                    el.barcodeHeight = 30 + Math.floor(Math.random() * 30); // 30px ~ 60px
+                    el.displayValue = Math.random() > 0.3; // 随机是否在条码下方附带编号
+                }
+                else if (el.type === 'qrcode') {
+                    el.qrcodeSize = 75 + Math.floor(Math.random() * 40); // 75px ~ 115px
+                }
+            });
+
+            renderReceipt();
+            if (selectedElementId) {
+                selectElement(selectedElementId);
+            }
+            showToast('🎲 布局结构已随机重组！您可以一键多点几次，挑选最满意的特色排版。');
         }
 
 
@@ -1129,11 +1274,10 @@
         }
 
 
-        /* ================== 右侧属性面板：智能商品随机重组算法 ================== */
+        /* ================== 智能消费商品打散重组算法 ================== */
         function generateRandomProducts(totalPrice, count, theme) {
             const items = PRODUCT_THEMES[theme] || PRODUCT_THEMES.restaurant;
             
-            // 1. 提取不重复的词库商品名
             let selectedNames = [];
             let tempItems = [...items];
             for (let i = 0; i < count; i++) {
@@ -1142,7 +1286,6 @@
                 selectedNames.push(tempItems.splice(idx, 1)[0]);
             }
 
-            // 2. 将目标总价拆解为 count 个随机价格份额
             let minVal = 1.00;
             if (totalPrice / count < minVal) {
                 minVal = totalPrice / count / 2;
@@ -1171,7 +1314,6 @@
 
             let prices = shares.map(share => Math.round((share + minVal) * 100) / 100);
             
-            // 消除四舍五入尾差
             let currentSum = prices.reduce((a, b) => a + b, 0);
             let diff = Math.round((totalPrice - currentSum) * 100) / 100;
             if (diff !== 0) {
@@ -1180,7 +1322,6 @@
 
             prices = prices.map(p => p <= 0 ? 0.01 : p);
 
-            // 3. 构造数据包并转换
             let tableRows = [];
             prices.forEach((price, idx) => {
                 let qty = 1;
@@ -1199,7 +1340,6 @@
                 ]);
             });
 
-            // 最终物理微调：确保累加无误差
             let finalSum = tableRows.reduce((sum, row) => sum + parseFloat(row[3]), 0);
             let finalDiff = Math.round((totalPrice - finalSum) * 100) / 100;
             if (finalDiff !== 0) {
@@ -1215,7 +1355,7 @@
             return tableRows;
         }
 
-        // 绑定在右侧属性面板的一键重组重洗动作
+        // 覆盖/智能重组动作
         function triggerSmartRebuild() {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
@@ -1240,7 +1380,6 @@
 
             const generatedRows = generateRandomProducts(totalPrice, count, theme);
 
-            // 不同行业定制表头文案
             let headers = "品名,数量,价格,金额";
             if (theme === 'clothes') {
                 headers = "货号品项,单价,数量,单位,小计";
@@ -1251,13 +1390,10 @@
             el.tableHeaders = headers;
             el.tableRows = generatedRows.map(row => {
                 if (theme === 'clothes') {
-                    // 对应 [货号品项, 单价, 数量, 单位, 小计]
                     return [row[0], row[2], row[1], '件', row[3]];
                 } else if (theme === 'market') {
-                    // 对应 [商品名称, 单价, 数量, 小计]
                     return [row[0], row[2], row[1], row[3]];
                 } else {
-                    // 餐饮：品名, 数量, 价格, 金额
                     return [row[0], row[1], row[2], row[3]];
                 }
             });
@@ -1582,6 +1718,33 @@
                 ];
                 setPaperWidth('58mm');
             } 
+            else if (type === 'restaurant_preview') {
+                // 新增：完美还原 image_bd51e9 消费预览单
+                receiptElements = [
+                    createNewElement('h2', '消费预览单', { size: 18, weight: 'bold', align: 'center' }),
+                    createNewElement('h1', 'xxx饭店', { size: 24, weight: 'bold', align: 'center' }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('text', '餐桌: 15\n人数: 3人\n类型: 堂食\n单号: 5498489434151309', { align: 'left', size: 14 }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('table', '', {
+                        tableHeaders: "菜品,数量,价格,金额",
+                        tableRows: [
+                            ["米饭", "1", "6", "6"],
+                            ["小炒牛肉", "1", "48", "48"],
+                            ["清蒸鲈鱼", "1", "50", "50"],
+                            ["红烧肉", "1", "56", "56"],
+                            ["小炒鸡", "1", "78", "78"]
+                        ],
+                        tableCalc: false // 同样采用下方精细分级汇总文字，以精准匹配图片
+                    }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('text', '  菜品价格合计:                                   238\n  订单金额:                                         238', { align: 'left', size: 14 }),
+                    createNewElement('text', '应付金额:                               238', { align: 'left', weight: 'bold', size: 16 }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('text', '下单人: 15\n2025年02月13日\n打印人: XXX\n2025年02月13日', { align: 'left', size: 13 })
+                ];
+                setPaperWidth('58mm');
+            }
             else if (type === 'clothes') {
                 receiptElements = [
                     createNewElement('text', '----------收据备份联----------', { align: 'center', size: 12 }),
