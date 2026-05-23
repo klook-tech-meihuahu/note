@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小票排版设计器 - 智能收银热敏小票排版系统</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons (图标库) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- JsBarcode (条形码生成库) -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <!-- QRCode.js (二维码生成库) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f1f5f9;
+        }
+
+        /* 小票纸张专有字体 (模拟热敏针式打印效果) */
+        .receipt-font {
+            font-family: 'Courier Prime', 'Courier', 'PingFang SC', 'Microsoft YaHei', monospace;
+        }
+
+        /* 隐藏打印时的无关元素 */
+        @media print {
+            body {
+                background: white !important;
+                color: black !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-area {
+                box-shadow: none !important;
+                border: none !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                background: white !important;
+            }
+            /* 强制热敏黑白高对比度 */
+            .print-area * {
+                color: #000000 !important;
+                text-shadow: none !important;
+            }
+            /* 去除页眉页脚 */
+            @page {
+                margin: 0;
+            }
+        }
+
+        /* 自定义美化滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* 逼真纸张质感模拟 */
+        .paper-effect {
+            background-image: radial-gradient(#fcfcfc 95%, #f3f3f3 100%);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 针式微糊拟真模式 */
+        .thermal-simulation {
+            filter: contrast(1.2) brightness(0.98) blur(0.2px);
+        }
+    </style>
+</head>
+<body class="h-screen overflow-hidden flex flex-col">
+
+    <!-- 顶部状态栏 & 快捷工具 (非打印区) -->
+    <header class="no-print bg-slate-900 text-white h-16 flex items-center justify-between px-6 z-10 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <i data-lucide="printer" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-wide">智能热敏小票排版设计器</h1>
+                <p class="text-xs text-slate-400">Smart Receipt Studio v2.0</p>
+            </div>
+        </div>
+        
+        <!-- 核心操作区 -->
+        <div class="flex items-center space-x-4">
+            <!-- 纸张宽度 -->
+            <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700">
+                <button onclick="setPaperWidth('58mm')" id="btn-58mm" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm">
+                    58mm 紧凑纸
+                </button>
+                <button onclick="setPaperWidth('80mm')" id="btn-80mm" class="px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white">
+                    80mm 宽幅纸
+                </button>
+            </div>
+
+            <!-- 仿真效果切换 -->
+            <button onclick="toggleSimulation()" id="btn-simulation" class="flex items-center space-x-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-xs border border-slate-700 transition">
+                <i data-lucide="eye" class="w-4 h-4 text-green-400"></i>
+                <span>热敏效果预览</span>
+            </button>
+
+            <!-- 打印按键 -->
+            <button onclick="printReceipt()" class="flex items-center space-x-2 px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium rounded-lg text-sm transition shadow-lg shadow-blue-500/20">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                <span>一键打印小票</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主界面布局 -->
+    <div class="flex-1 flex overflow-hidden">
+        
+        <!-- 1. 左侧工具栏 (添加文字、组件、线条) -->
+        <aside class="no-print w-80 bg-white border-r border-slate-200 flex flex-col h-full shadow-sm z-10">
+            <!-- 栏位标签导航 -->
+            <div class="flex border-b border-slate-200 bg-slate-50">
+                <button class="flex-1 py-3 text-center text-sm font-semibold border-b-2 border-blue-600 text-blue-600 flex items-center justify-center space-x-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>添加元素</span>
+                </button>
+                <button onclick="showTemplatesModal()" class="flex-1 py-3 text-center text-sm font-medium text-slate-600 hover:text-slate-900 border-b-2 border-transparent hover:border-slate-300 flex items-center justify-center space-x-2">
+                    <i data-lucide="layout-template" class="w-4 h-4"></i>
+                    <span>经典模板</span>
+                </button>
+            </div>
+
+            <!-- 可滚动添加面板 -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- 添加图片文件 -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">添加文件</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex flex-col items-center justify-center p-3 border border-dashed border-slate-200 hover:border-blue-500 rounded-xl cursor-pointer hover:bg-blue-50/20 transition-all text-slate-600">
+                            <i data-lucide="image" class="w-5 h-5 mb-1.5 text-blue-500"></i>
+                            <span class="text-xs font-medium">上传Logo</span>
+                            <input type="file" id="image-uploader" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                        </label>
+                        <button onclick="addMockPdfPlaceholder()" class="flex flex-col items-center justify-center p-3 border border-dashed border-slate-200 hover:border-blue-500 rounded-xl hover:bg-blue-50/20 transition-all text-slate-600">
+                            <i data-lucide="file-text" class="w-5 h-5 mb-1.5 text-red-500"></i>
+                            <span class="text-xs font-medium">上传PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 添加文字 -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">添加文字</h3>
+                    <div class="space-y-2">
+                        <button onclick="addTextElement('h1')" class="w-full flex items-center justify-between p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
+                            <span class="flex items-center space-x-3">
+                                <span class="bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded text-xs">H1</span>
+                                <span class="text-xs font-semibold text-slate-700">主标题 (店名)</span>
+                            </span>
+                            <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+                        </button>
+                        <button onclick="addTextElement('h2')" class="w-full flex items-center justify-between p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
+                            <span class="flex items-center space-x-3">
+                                <span class="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded text-xs">H2</span>
+                                <span class="text-xs font-medium text-slate-700">副标题 (小分类/单据)</span>
+                            </span>
+                            <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+                        </button>
+                        <button onclick="addTextElement('text')" class="w-full flex items-center justify-between p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
+                            <span class="flex items-center space-x-3">
+                                <span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">Tt</span>
+                                <span class="text-xs font-normal text-slate-700">普通文本 (单号、备注等)</span>
+                            </span>
+                            <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 添加组件 (条形码、二维码) -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">添加组件</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addBarcodeElement()" class="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 transition text-slate-700">
+                            <i data-lucide="barcode" class="w-5 h-5 mb-1.5 text-indigo-500"></i>
+                            <span class="text-xs font-medium">条形码</span>
+                        </button>
+                        <button onclick="addQrCodeElement()" class="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 transition text-slate-700">
+                            <i data-lucide="qr-code" class="w-5 h-5 mb-1.5 text-emerald-500"></i>
+                            <span class="text-xs font-medium">二维码</span>
+                        </button>
+                        <button onclick="addPdf417Element()" class="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 transition text-slate-700">
+                            <i data-lucide="align-justify" class="w-5 h-5 mb-1.5 text-amber-500"></i>
+                            <span class="text-xs font-medium text-center">PDF417条码</span>
+                        </button>
+                        <button onclick="addDataMatrixElement()" class="flex flex-col items-center justify-center p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 transition text-slate-700">
+                            <i data-lucide="grid" class="w-5 h-5 mb-1.5 text-pink-500"></i>
+                            <span class="text-xs font-medium text-center">DataMatrix</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 线条与分割线 -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">线条组件</h3>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="addLineElement('dashed')" class="p-2 border border-slate-100 hover:border-blue-200 rounded-lg hover:bg-slate-50 transition flex flex-col items-center justify-center">
+                            <span class="text-xs font-bold text-slate-600 mb-1">- - -</span>
+                            <span class="text-[10px] text-slate-500">虚线</span>
+                        </button>
+                        <button onclick="addLineElement('solid')" class="p-2 border border-slate-100 hover:border-blue-200 rounded-lg hover:bg-slate-50 transition flex flex-col items-center justify-center">
+                            <span class="text-xs font-bold text-slate-600 mb-1">——</span>
+                            <span class="text-[10px] text-slate-500">实线</span>
+                        </button>
+                        <button onclick="addLineElement('double')" class="p-2 border border-slate-100 hover:border-blue-200 rounded-lg hover:bg-slate-50 transition flex flex-col items-center justify-center">
+                            <span class="text-xs font-bold text-slate-600 mb-1">══</span>
+                            <span class="text-[10px] text-slate-500">双线</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 添加消费表格 -->
+                <div>
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">数据与表格</h3>
+                    <button onclick="addTableElement()" class="w-full flex items-center justify-between p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
+                        <span class="flex items-center space-x-3">
+                            <i data-lucide="table-properties" class="w-5 h-5 text-blue-600"></i>
+                            <span class="text-xs font-semibold text-slate-700">添加明细消费表格</span>
+                        </span>
+                        <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 清空按钮 -->
+            <div class="p-4 border-t border-slate-200 bg-slate-50">
+                <button onclick="confirmClearReceipt()" class="w-full py-2.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span>清空当前画布</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 2. 中间：画布工作区 -->
+        <main class="flex-1 overflow-y-auto bg-slate-100 flex justify-center py-10 px-4 relative">
+            <div class="max-w-xl w-full flex flex-col items-center">
+                <!-- 尺标提示 -->
+                <div class="no-print w-full flex justify-between items-center mb-3 text-xs text-slate-400">
+                    <span class="flex items-center"><i data-lucide="info" class="w-3.5 h-3.5 mr-1 text-slate-400"></i>点击小票任意行可直接编辑内容</span>
+                    <span id="label-width">当前宽度: 58mm (约380像素)</span>
+                </div>
+
+                <!-- 模拟小票白纸 -->
+                <div id="receipt-paper" class="paper-effect p-6 transition-all duration-300 thermal-simulation receipt-font select-none print-area relative" style="width: 380px; min-height: 500px; color: #111;">
+                    <!-- 顶端小票裁切口样式 -->
+                    <div class="no-print absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-b from-slate-200/50 to-transparent"></div>
+                    
+                    <!-- 小票节点容器 -->
+                    <div id="receipt-content-holder" class="space-y-2 text-sm leading-relaxed">
+                        <!-- 动态渲染 -->
+                    </div>
+
+                    <!-- 底端小票锯齿边缘模拟 (仅在屏幕预览时显示) -->
+                    <div class="no-print absolute -bottom-3 left-0 right-0 h-3 bg-repeat-x overflow-hidden" style="background-image: radial-gradient(circle, transparent, transparent 50%, #f1f5f9 50%, #f1f5f9 100%), radial-gradient(circle, transparent, transparent 50%, #f1f5f9 50%, #f1f5f9 100%); background-size: 8px 8px; background-position: 0 0, 4px 4px;"></div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 3. 右侧属性编辑栏 -->
+        <aside class="no-print w-80 bg-white border-l border-slate-200 flex flex-col h-full shadow-sm z-10">
+            <div class="p-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <h2 class="font-bold text-sm text-slate-700 flex items-center space-x-1.5">
+                    <i data-lucide="sliders" class="w-4 h-4 text-slate-500"></i>
+                    <span>属性控制台</span>
+                </h2>
+                <span id="selected-type-badge" class="px-2 py-0.5 bg-slate-200 text-slate-700 rounded text-[10px] font-medium hidden">未选中</span>
+            </div>
+
+            <!-- 属性调节区 -->
+            <div id="properties-panel" class="flex-1 overflow-y-auto p-4 space-y-5">
+                <!-- 空态提示 -->
+                <div id="panel-empty-state" class="h-full flex flex-col items-center justify-center text-slate-400 text-center py-20">
+                    <i data-lucide="mouse-pointer" class="w-10 h-10 mb-3 text-slate-300 animate-bounce"></i>
+                    <p class="text-xs">点击左边小票任意组件<br>即可实时在此处调整内容与格式</p>
+                </div>
+
+                <!-- 1. 文字型属性编辑器 (标题 / 副标题 / 文本) -->
+                <div id="panel-editor-text" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">文本内容</label>
+                        <textarea id="prop-text-content" rows="3" oninput="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">对齐方式</label>
+                        <div class="grid grid-cols-3 gap-1 bg-slate-100 p-1 rounded-lg">
+                            <button onclick="setAlign('left')" id="btn-align-left" class="py-1 flex justify-center rounded text-slate-700 hover:bg-white transition"><i data-lucide="align-left" class="w-4 h-4"></i></button>
+                            <button onclick="setAlign('center')" id="btn-align-center" class="py-1 flex justify-center rounded text-slate-700 hover:bg-white transition"><i data-lucide="align-center" class="w-4 h-4"></i></button>
+                            <button onclick="setAlign('right')" id="btn-align-right" class="py-1 flex justify-center rounded text-slate-700 hover:bg-white transition"><i data-lucide="align-right" class="w-4 h-4"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5">字体大小 (px)</label>
+                            <input type="number" id="prop-text-size" oninput="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none" min="10" max="48">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5">字重 (粗细)</label>
+                            <select id="prop-text-weight" onchange="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none bg-white">
+                                <option value="normal">正常 (Light)</option>
+                                <option value="bold">加粗 (Bold)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700">
+                            <input type="checkbox" id="prop-text-extra-spacing" onchange="updateSelectedElement()" class="rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <span>字距加宽 (模拟印刷体)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 2. 线条型属性编辑器 -->
+                <div id="panel-editor-line" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">线条样式</label>
+                        <select id="prop-line-style" onchange="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none bg-white">
+                            <option value="dashed">虚线 (Dashed - - -)</option>
+                            <option value="solid">实线 (Solid ——)</option>
+                            <option value="double">双层线 (Double ══)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3. 组件类属性编辑器 (条码 / 二维码) -->
+                <div id="panel-editor-code" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">扫码附带数值/链接</label>
+                        <input type="text" id="prop-code-value" oninput="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                        <p class="text-[10px] text-slate-400 mt-1">请扫码以验证设备和数值的对应关系</p>
+                    </div>
+
+                    <div id="barcode-only-props" class="space-y-4">
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5">条形高度</label>
+                                <input type="number" id="prop-barcode-height" oninput="updateSelectedElement()" min="20" max="150" class="w-full p-2 text-xs border border-slate-200 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1.5">条码宽度</label>
+                                <input type="number" step="0.5" id="prop-barcode-width" oninput="updateSelectedElement()" min="1" max="4" class="w-full p-2 text-xs border border-slate-200 rounded-lg">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700">
+                                <input type="checkbox" id="prop-barcode-display" onchange="updateSelectedElement()" class="rounded border-slate-300">
+                                <span>下方显示数字</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="qrcode-only-props" class="hidden">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5">图案大小 (px)</label>
+                            <input type="number" id="prop-qrcode-size" oninput="updateSelectedElement()" min="50" max="300" class="w-full p-2 text-xs border border-slate-200 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. 表格类属性编辑器 -->
+                <div id="panel-editor-table" class="hidden space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-500">明细数据编辑</span>
+                        <button onclick="addTableRow()" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs font-bold flex items-center space-x-1">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>新增一行</span>
+                        </button>
+                    </div>
+
+                    <!-- 表头设置 -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">表头设置 (英文逗号分隔)</label>
+                        <input type="text" id="prop-table-headers" oninput="updateTableHeaders()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none">
+                    </div>
+
+                    <!-- 行明细容器 -->
+                    <div class="space-y-2 max-h-80 overflow-y-auto" id="table-rows-editor-container">
+                        <!-- 行内容动态渲染 -->
+                    </div>
+                    
+                    <!-- 自动计算总额开关 -->
+                    <div class="border-t border-slate-100 pt-3">
+                        <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700">
+                            <input type="checkbox" id="prop-table-calc" onchange="toggleTableAutoCalculate()" class="rounded border-slate-300 text-blue-600">
+                            <span>开启末列应收金额自动求和</span>
+                        </label>
+                        <p class="text-[10px] text-slate-400 mt-1">开启后将计算表格最右一列金额的总数，并显示在底部</p>
+                    </div>
+                </div>
+
+                <!-- 5. 图片型属性编辑器 -->
+                <div id="panel-editor-image" class="hidden space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">图像居中控制</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="setImageWidth(80)" class="py-1 px-3 border rounded text-xs">小 (80px)</button>
+                            <button onclick="setImageWidth(150)" class="py-1 px-3 border rounded text-xs">大 (150px)</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">重置图像大小 (px)</label>
+                        <input type="number" id="prop-image-width" oninput="updateSelectedElement()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作浮窗：删除/移位 -->
+            <div id="panel-actions-wrapper" class="hidden p-4 border-t border-slate-200 bg-slate-50 space-y-2">
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="moveCurrentElement('up')" class="py-2 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center space-x-1 transition">
+                        <i data-lucide="arrow-up" class="w-4 h-4"></i>
+                        <span>上移一行</span>
+                    </button>
+                    <button onclick="moveCurrentElement('down')" class="py-2 px-3 bg-white hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center justify-center space-x-1 transition">
+                        <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                        <span>下移一行</span>
+                    </button>
+                </div>
+                <button onclick="deleteCurrentElement()" class="w-full py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-1 transition">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    <span>删除当前元素</span>
+                </button>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- 自定义通知弹框 (代替 Alert) -->
+    <div id="toast" class="no-print fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-2 text-xs font-medium z-50 transition-all duration-300 opacity-0 translate-y-4 pointer-events-none">
+        <i data-lucide="check-circle-2" class="text-green-400 w-4 h-4" id="toast-icon"></i>
+        <span id="toast-message">操作成功!</span>
+    </div>
+
+    <!-- 经典模板挑选模态弹窗 -->
+    <div id="templates-modal" class="no-print fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 transition-all">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl">
+            <!-- 模态头 -->
+            <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                    <h3 class="text-base font-bold text-slate-800">选择经典小票模板</h3>
+                    <p class="text-xs text-slate-500">一键应用标准行业的经典小票版式设计</p>
+                </div>
+                <button onclick="hideTemplatesModal()" class="p-1 rounded-full text-slate-400 hover:bg-slate-100 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- 模态体 -->
+            <div class="flex-1 overflow-y-auto p-6 grid grid-cols-2 gap-4">
+                <!-- 模板 1 -->
+                <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('restaurant')">
+                    <div>
+                        <div class="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">餐饮行业</div>
+                        <h4 class="font-bold text-sm text-slate-800">"×××饭店" 结账单</h4>
+                        <p class="text-xs text-slate-500 mt-1">完美还原经典餐饮饭店结账单、餐台明细、价格列表、双重底线结构。</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
+                        <span>立即应用</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+
+                <!-- 模板 2 -->
+                <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('clothes')">
+                    <div>
+                        <div class="bg-indigo-50 text-indigo-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">服装零售</div>
+                        <h4 class="font-bold text-sm text-slate-800">"xxx服装店" 收银小票</h4>
+                        <p class="text-xs text-slate-500 mt-1">带经典条形码、小票收据备份、商品退换制度、找零及收银员明细版面。</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
+                        <span>立即应用</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+
+                <!-- 模板 3 -->
+                <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('market')">
+                    <div>
+                        <div class="bg-emerald-50 text-emerald-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">超市收银</div>
+                        <h4 class="font-bold text-sm text-slate-800">"快达超市" 零售明细单</h4>
+                        <p class="text-xs text-slate-500 mt-1">包含店面多项明细商品购买清单、底部专属支付二维码引导结构。</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-blue-600">
+                        <span>立即应用</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+
+                <!-- 模板 4 -->
+                <div class="border border-slate-200 hover:border-blue-500 hover:shadow-lg rounded-xl p-4 flex flex-col justify-between transition cursor-pointer" onclick="loadTemplate('blank')">
+                    <div>
+                        <div class="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">全新设计</div>
+                        <h4 class="font-bold text-sm text-slate-800">空白画布</h4>
+                        <p class="text-xs text-slate-500 mt-1">清空当前，您可以从零自由发挥添加自定义文本和扫码元素组件。</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
+                        <span>立即应用</span>
+                        <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- 业务逻辑脚本 -->
+    <script>
+        // 核心内存数据
+        let receiptElements = [];
+        let selectedElementId = null;
+        let paperWidthMode = '58mm'; // '58mm' or '80mm'
+        let hasThermalSimulation = true;
+
+        // 默认初始化加载餐饮结账单
+        window.onload = function() {
+            lucide.createIcons();
+            loadTemplate('restaurant');
+        };
+
+        // 触发自适应 Toast
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMessage.textContent = msg;
+            if (isError) {
+                toastIcon.setAttribute('data-lucide', 'alert-triangle');
+                toastIcon.className = "text-red-400 w-4 h-4";
+            } else {
+                toastIcon.setAttribute('data-lucide', 'check-circle-2');
+                toastIcon.className = "text-green-400 w-4 h-4";
+            }
+            lucide.createIcons();
+
+            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 2500);
+        }
+
+        // 切换纸张宽度
+        function setPaperWidth(width) {
+            paperWidthMode = width;
+            const paper = document.getElementById('receipt-paper');
+            const btn58 = document.getElementById('btn-58mm');
+            const btn80 = document.getElementById('btn-80mm');
+            const labelWidth = document.getElementById('label-width');
+
+            if (width === '58mm') {
+                paper.style.width = '380px';
+                btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
+                btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
+                labelWidth.textContent = "当前宽度: 58mm (约380像素)";
+            } else {
+                paper.style.width = '520px';
+                btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
+                btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
+                labelWidth.textContent = "当前宽度: 80mm (约520像素)";
+            }
+            renderReceipt();
+            showToast(`已成功切换为 ${width} 纸宽`);
+        }
+
+        // 切换效果预览 (针式打印感觉)
+        function toggleSimulation() {
+            hasThermalSimulation = !hasThermalSimulation;
+            const paper = document.getElementById('receipt-paper');
+            const btn = document.getElementById('btn-simulation');
+
+            if (hasThermalSimulation) {
+                paper.classList.add('thermal-simulation');
+                btn.innerHTML = `<i data-lucide="eye" class="w-4 h-4 text-green-400"></i><span>热敏效果预览</span>`;
+            } else {
+                paper.classList.remove('thermal-simulation');
+                btn.innerHTML = `<i data-lucide="eye-off" class="w-4 h-4 text-slate-400"></i><span>纯白无尘模式</span>`;
+            }
+            lucide.createIcons();
+        }
+
+        // 创建全新元素数据结构
+        function createNewElement(type, value = '', extra = {}) {
+            return {
+                id: 'el-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+                type: type,
+                value: value,
+                align: 'center',
+                size: type === 'h1' ? 24 : (type === 'h2' ? 18 : 14),
+                weight: (type === 'h1' || type === 'h2') ? 'bold' : 'normal',
+                extraSpacing: false,
+                lineStyle: 'dashed',
+                // 组件类额外属性
+                barcodeHeight: 45,
+                barcodeWidth: 1.5,
+                displayValue: true,
+                qrcodeSize: 90,
+                // 表格属性
+                tableHeaders: "品名,数量,价格,金额",
+                tableRows: [["示范商品", "1", "10", "10"]],
+                tableCalc: true,
+                // 图片宽度属性
+                imageWidth: 120,
+                ...extra
+            };
+        }
+
+        // 新增文字元素
+        function addTextElement(styleType) {
+            let val = '这里是普通文本';
+            if (styleType === 'h1') val = '店铺名称';
+            if (styleType === 'h2') val = '收银小票';
+
+            const newEl = createNewElement(styleType, val);
+            newEl.align = (styleType === 'h1' || styleType === 'h2') ? 'center' : 'left';
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已追加新文本行');
+        }
+
+        // 新增线条元素
+        function addLineElement(style) {
+            const newEl = createNewElement('line');
+            newEl.lineStyle = style;
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+        }
+
+        // 新增条码
+        function addBarcodeElement() {
+            const newEl = createNewElement('barcode', 'NO.484843544');
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已生成标准 CODE128 条形码');
+        }
+
+        // 新增二维码
+        function addQrCodeElement() {
+            const newEl = createNewElement('qrcode', 'https://www.google.com');
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已生成二维码');
+        }
+
+        // 添加PDF417
+        function addPdf417Element() {
+            const newEl = createNewElement('pdf417', 'PDF417-DATA-MOCK-66898');
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已添加PDF417二维码');
+        }
+
+        // 添加DataMatrix
+        function addDataMatrixElement() {
+            const newEl = createNewElement('datamatrix', 'DATAMATRIX-SAMPLE-8890');
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已添加DataMatrix二维码');
+        }
+
+        // 添加明细消费表格
+        function addTableElement() {
+            const newEl = createNewElement('table');
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已添加消费统计表格');
+        }
+
+        // 处理 Logo 图片上传
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const newEl = createNewElement('image', e.target.result);
+                newEl.imageWidth = 100;
+                receiptElements.push(newEl);
+                renderReceipt();
+                selectElement(newEl.id);
+                showToast('Logo 上传成功！');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 模拟 PDF 占位符上传 (展示型)
+        function addMockPdfPlaceholder() {
+            const mockUrl = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23fee2e2'/><text x='50' y='55' font-size='12' font-family='Arial' fill='%23b91c1c' text-anchor='middle'>PDF LOGO</text></svg>";
+            const newEl = createNewElement('image', mockUrl);
+            newEl.imageWidth = 80;
+            receiptElements.push(newEl);
+            renderReceipt();
+            selectElement(newEl.id);
+            showToast('已自动从 PDF 导入高精矢量图标');
+        }
+
+        // 设置图片宽度
+        function setImageWidth(val) {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'image') {
+                el.imageWidth = val;
+                document.getElementById('prop-image-width').value = val;
+                renderReceipt();
+            }
+        }
+
+        // 选中某一个元素节点
+        function selectElement(id) {
+            selectedElementId = id;
+            
+            // 样式高亮处理
+            const cards = document.querySelectorAll('.receipt-card');
+            cards.forEach(card => {
+                if (card.getAttribute('data-id') === id) {
+                    card.classList.add('border-blue-500', 'bg-blue-50/20');
+                } else {
+                    card.classList.remove('border-blue-500', 'bg-blue-50/20');
+                }
+            });
+
+            // 获取元素并渲染控制面板
+            const el = receiptElements.find(item => item.id === id);
+            if (!el) {
+                hideAllPanels();
+                return;
+            }
+
+            // 更新右上角 Badge
+            const badge = document.getElementById('selected-type-badge');
+            badge.textContent = el.type.toUpperCase();
+            badge.classList.remove('hidden');
+
+            // 显示控制区基础设置
+            document.getElementById('panel-empty-state').classList.add('hidden');
+            document.getElementById('panel-actions-wrapper').classList.remove('hidden');
+
+            // 隐藏所有特定类型面板
+            document.getElementById('panel-editor-text').classList.add('hidden');
+            document.getElementById('panel-editor-line').classList.add('hidden');
+            document.getElementById('panel-editor-code').classList.add('hidden');
+            document.getElementById('panel-editor-table').classList.add('hidden');
+            document.getElementById('panel-editor-image').classList.add('hidden');
+
+            // 依据类型开启对应面板
+            if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
+                document.getElementById('panel-editor-text').classList.remove('hidden');
+                document.getElementById('prop-text-content').value = el.value;
+                document.getElementById('prop-text-size').value = el.size;
+                document.getElementById('prop-text-weight').value = el.weight;
+                document.getElementById('prop-text-extra-spacing').checked = el.extraSpacing;
+                
+                // 激活对齐方式状态按钮
+                document.getElementById('btn-align-left').className = el.align === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                document.getElementById('btn-align-center').className = el.align === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                document.getElementById('btn-align-right').className = el.align === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+            } 
+            else if (el.type === 'line') {
+                document.getElementById('panel-editor-line').classList.remove('hidden');
+                document.getElementById('prop-line-style').value = el.lineStyle;
+            } 
+            else if (el.type === 'barcode' || el.type === 'qrcode' || el.type === 'pdf417' || el.type === 'datamatrix') {
+                document.getElementById('panel-editor-code').classList.remove('hidden');
+                document.getElementById('prop-code-value').value = el.value;
+
+                if (el.type === 'barcode') {
+                    document.getElementById('barcode-only-props').classList.remove('hidden');
+                    document.getElementById('qrcode-only-props').classList.add('hidden');
+                    document.getElementById('prop-barcode-height').value = el.barcodeHeight;
+                    document.getElementById('prop-barcode-width').value = el.barcodeWidth;
+                    document.getElementById('prop-barcode-display').checked = el.displayValue;
+                } else if (el.type === 'qrcode') {
+                    document.getElementById('barcode-only-props').classList.add('hidden');
+                    document.getElementById('qrcode-only-props').classList.remove('hidden');
+                    document.getElementById('prop-qrcode-size').value = el.qrcodeSize;
+                } else {
+                    document.getElementById('barcode-only-props').classList.add('hidden');
+                    document.getElementById('qrcode-only-props').classList.add('hidden');
+                }
+            } 
+            else if (el.type === 'table') {
+                document.getElementById('panel-editor-table').classList.remove('hidden');
+                document.getElementById('prop-table-headers').value = el.tableHeaders;
+                document.getElementById('prop-table-calc').checked = el.tableCalc;
+                renderTableRowsEditor(el);
+            }
+            else if (el.type === 'image') {
+                document.getElementById('panel-editor-image').classList.remove('hidden');
+                document.getElementById('prop-image-width').value = el.imageWidth;
+            }
+        }
+
+        // 隐藏所有面板
+        function hideAllPanels() {
+            document.getElementById('panel-empty-state').classList.remove('hidden');
+            document.getElementById('panel-actions-wrapper').classList.add('hidden');
+            document.getElementById('selected-type-badge').classList.add('hidden');
+            
+            document.getElementById('panel-editor-text').classList.add('hidden');
+            document.getElementById('panel-editor-line').classList.add('hidden');
+            document.getElementById('panel-editor-code').classList.add('hidden');
+            document.getElementById('panel-editor-table').classList.add('hidden');
+            document.getElementById('panel-editor-image').classList.add('hidden');
+            selectedElementId = null;
+        }
+
+        // 从控制台更新选中元素并重新渲染
+        function updateSelectedElement() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (!el) return;
+
+            if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
+                el.value = document.getElementById('prop-text-content').value;
+                el.size = parseInt(document.getElementById('prop-text-size').value) || 12;
+                el.weight = document.getElementById('prop-text-weight').value;
+                el.extraSpacing = document.getElementById('prop-text-extra-spacing').checked;
+            } 
+            else if (el.type === 'line') {
+                el.lineStyle = document.getElementById('prop-line-style').value;
+            } 
+            else if (el.type === 'barcode' || el.type === 'qrcode' || el.type === 'pdf417' || el.type === 'datamatrix') {
+                el.value = document.getElementById('prop-code-value').value;
+
+                if (el.type === 'barcode') {
+                    el.barcodeHeight = parseInt(document.getElementById('prop-barcode-height').value) || 30;
+                    el.barcodeWidth = parseFloat(document.getElementById('prop-barcode-width').value) || 1;
+                    el.displayValue = document.getElementById('prop-barcode-display').checked;
+                } else if (el.type === 'qrcode') {
+                    el.qrcodeSize = parseInt(document.getElementById('prop-qrcode-size').value) || 80;
+                }
+            }
+            else if (el.type === 'image') {
+                el.imageWidth = parseInt(document.getElementById('prop-image-width').value) || 80;
+            }
+
+            renderReceipt();
+            // 重新赋予选定框样式，防止重新渲染后失去光标样式
+            const activeCard = document.querySelector(`.receipt-card[data-id="${selectedElementId}"]`);
+            if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
+        }
+
+        // 修改文字对齐方式属性
+        function setAlign(alignment) {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el) {
+                el.align = alignment;
+                updateSelectedElement();
+                // 重新渲染对齐状态按键样式
+                document.getElementById('btn-align-left').className = alignment === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                document.getElementById('btn-align-center').className = alignment === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                document.getElementById('btn-align-right').className = alignment === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+            }
+        }
+
+        // 调整小票元素物理位置 (上移/下移)
+        function moveCurrentElement(direction) {
+            if (!selectedElementId) return;
+            const index = receiptElements.findIndex(item => item.id === selectedElementId);
+            if (index === -1) return;
+
+            if (direction === 'up' && index > 0) {
+                // 上移
+                const temp = receiptElements[index];
+                receiptElements[index] = receiptElements[index - 1];
+                receiptElements[index - 1] = temp;
+                renderReceipt();
+                selectElement(selectedElementId);
+            } else if (direction === 'down' && index < receiptElements.length - 1) {
+                // 下移
+                const temp = receiptElements[index];
+                receiptElements[index] = receiptElements[index + 1];
+                receiptElements[index + 1] = temp;
+                renderReceipt();
+                selectElement(selectedElementId);
+            }
+        }
+
+        // 删除选中的元素节点
+        function deleteCurrentElement() {
+            if (!selectedElementId) return;
+            receiptElements = receiptElements.filter(item => item.id !== selectedElementId);
+            hideAllPanels();
+            renderReceipt();
+            showToast('已删除该行组件');
+        }
+
+        // 询问并清空小票
+        function confirmClearReceipt() {
+            if (receiptElements.length === 0) {
+                showToast('画布本身已是空态');
+                return;
+            }
+            receiptElements = [];
+            hideAllPanels();
+            renderReceipt();
+            showToast('画布已重置为空白状态');
+        }
+
+
+        /* ================== 表格相关操作函数 ================== */
+        function renderTableRowsEditor(el) {
+            const container = document.getElementById('table-rows-editor-container');
+            container.innerHTML = '';
+            
+            const headers = el.tableHeaders.split(',');
+            
+            el.tableRows.forEach((row, rowIndex) => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = "p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-2 relative group";
+                
+                // 行内表格每列输入控制
+                let gridHtml = `<div class="grid grid-cols-4 gap-1">`;
+                headers.forEach((hdr, colIndex) => {
+                    const colVal = row[colIndex] || '';
+                    gridHtml += `
+                        <div>
+                            <span class="text-[9px] text-slate-400 font-medium block truncate">${hdr}</span>
+                            <input type="text" value="${colVal}" oninput="updateTableRowCell(${rowIndex}, ${colIndex}, this.value)" class="w-full p-1 text-[11px] border border-slate-200 rounded outline-none focus:border-blue-500 bg-white">
+                        </div>
+                    `;
+                });
+                gridHtml += `</div>`;
+                
+                // 行删除按键
+                const deleteBtnHtml = `
+                    <button onclick="deleteTableRow(${rowIndex})" class="absolute -top-1 -right-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition shadow">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                `;
+                
+                rowDiv.innerHTML = gridHtml + deleteBtnHtml;
+                container.appendChild(rowDiv);
+            });
+            lucide.createIcons();
+        }
+
+        function updateTableHeaders() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                el.tableHeaders = document.getElementById('prop-table-headers').value;
+                renderReceipt();
+                renderTableRowsEditor(el);
+            }
+        }
+
+        function updateTableRowCell(rowIndex, colIndex, value) {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                if (!el.tableRows[rowIndex]) el.tableRows[rowIndex] = [];
+                el.tableRows[rowIndex][colIndex] = value;
+                renderReceipt();
+            }
+        }
+
+        function addTableRow() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                const headerCount = el.tableHeaders.split(',').length;
+                const newRow = Array(headerCount).fill('0');
+                if (headerCount > 0) newRow[0] = "新品项";
+                el.tableRows.push(newRow);
+                renderReceipt();
+                renderTableRowsEditor(el);
+            }
+        }
+
+        function deleteTableRow(rowIndex) {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                el.tableRows.splice(rowIndex, 1);
+                renderReceipt();
+                renderTableRowsEditor(el);
+            }
+        }
+
+        function toggleTableAutoCalculate() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                el.tableCalc = document.getElementById('prop-table-calc').checked;
+                renderReceipt();
+            }
+        }
+
+
+        /* ================== 小票核心物理渲染方法 ================== */
+        function renderReceipt() {
+            const holder = document.getElementById('receipt-content-holder');
+            holder.innerHTML = '';
+
+            if (receiptElements.length === 0) {
+                holder.innerHTML = `
+                    <div class="no-print py-12 flex flex-col items-center justify-center text-slate-400 text-xs">
+                        <p class="text-center font-bold mb-1">小票上暂无内容</p>
+                        <p class="text-center text-slate-400">请点击左侧工具栏，添加线条、文字和表格吧！</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // 依据内存列表循环渲染每个块
+            receiptElements.forEach(el => {
+                const outerDiv = document.createElement('div');
+                outerDiv.className = `receipt-card relative group p-1 rounded-md border border-dashed border-transparent hover:border-blue-400 hover:bg-blue-50/10 cursor-pointer transition-all`;
+                outerDiv.setAttribute('data-id', el.id);
+                outerDiv.onclick = (e) => {
+                    e.stopPropagation();
+                    selectElement(el.id);
+                };
+
+                // 文字对齐、大小、间距转换
+                const alignClass = `text-${el.align}`;
+                const boldClass = el.weight === 'bold' ? 'font-bold' : 'font-normal';
+                const extraSpacingClass = el.extraSpacing ? 'tracking-[0.15em]' : 'tracking-normal';
+
+                let innerHtml = '';
+
+                if (el.type === 'h1') {
+                    innerHtml = `<h1 class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.25;">${escapeHtml(el.value)}</h1>`;
+                } 
+                else if (el.type === 'h2') {
+                    innerHtml = `<h2 class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.3;">${escapeHtml(el.value)}</h2>`;
+                } 
+                else if (el.type === 'text') {
+                    // 支持换行
+                    const formattedText = escapeHtml(el.value).replace(/\n/g, '<br>');
+                    innerHtml = `<div class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.4;">${formattedText}</div>`;
+                } 
+                else if (el.type === 'line') {
+                    if (el.lineStyle === 'dashed') {
+                        innerHtml = `<div class="border-t border-dashed border-black my-1 w-full"></div>`;
+                    } else if (el.lineStyle === 'solid') {
+                        innerHtml = `<div class="border-t border-black my-1 w-full"></div>`;
+                    } else if (el.lineStyle === 'double') {
+                        innerHtml = `<div class="border-t-4 border-double border-black my-1 w-full"></div>`;
+                    }
+                } 
+                else if (el.type === 'barcode') {
+                    innerHtml = `
+                        <div class="flex flex-col items-center my-1.5 overflow-hidden">
+                            <svg id="canvas-barcode-${el.id}"></svg>
+                        </div>
+                    `;
+                } 
+                else if (el.type === 'qrcode') {
+                    innerHtml = `
+                        <div class="flex flex-col items-center my-1.5">
+                            <div id="canvas-qrcode-${el.id}" class="bg-white p-1 inline-block"></div>
+                            <span class="text-[9px] mt-1 text-slate-500 select-all">${escapeHtml(el.value)}</span>
+                        </div>
+                    `;
+                } 
+                else if (el.type === 'pdf417') {
+                    innerHtml = `
+                        <div class="flex flex-col items-center my-1.5 opacity-95">
+                            <!-- 模拟矢量 PDF417 条码 -->
+                            <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg" class="shape-rendering-crisp">
+                                <rect width="220" height="45" fill="white"/>
+                                <rect x="5" y="5" width="4" height="35" fill="black"/>
+                                <rect x="12" y="5" width="8" height="35" fill="black"/>
+                                <rect x="23" y="5" width="2" height="35" fill="black"/>
+                                <rect x="28" y="5" width="6" height="35" fill="black"/>
+                                <rect x="38" y="5" width="4" height="35" fill="black"/>
+                                <rect x="46" y="5" width="10" height="35" fill="black"/>
+                                <rect x="59" y="5" width="2" height="35" fill="black"/>
+                                <rect x="65" y="5" width="6" height="35" fill="black"/>
+                                <rect x="75" y="5" width="8" height="35" fill="black"/>
+                                <rect x="88" y="5" width="3" height="35" fill="black"/>
+                                <rect x="95" y="5" width="5" height="35" fill="black"/>
+                                <rect x="105" y="5" width="12" height="35" fill="black"/>
+                                <rect x="122" y="5" width="2" height="35" fill="black"/>
+                                <rect x="128" y="5" width="8" height="35" fill="black"/>
+                                <rect x="140" y="5" width="6" height="35" fill="black"/>
+                                <rect x="150" y="5" width="4" height="35" fill="black"/>
+                                <rect x="158" y="5" width="10" height="35" fill="black"/>
+                                <rect x="172" y="5" width="4" height="35" fill="black"/>
+                                <rect x="180" y="5" width="8" height="35" fill="black"/>
+                                <rect x="192" y="5" width="3" height="35" fill="black"/>
+                                <rect x="200" y="5" width="5" height="35" fill="black"/>
+                                <rect x="210" y="5" width="5" height="35" fill="black"/>
+                            </svg>
+                            <span class="text-[9px] mt-0.5 text-slate-500">${escapeHtml(el.value)}</span>
+                        </div>
+                    `;
+                } 
+                else if (el.type === 'datamatrix') {
+                    innerHtml = `
+                        <div class="flex flex-col items-center my-1.5">
+                            <!-- 模拟 DataMatrix 二维矩阵码 -->
+                            <svg width="65" height="65" viewBox="0 0 65 65" xmlns="http://www.w3.org/2000/svg" class="shape-rendering-crisp">
+                                <rect width="65" height="65" fill="white"/>
+                                <rect x="5" y="5" width="55" height="5" fill="black"/>
+                                <rect x="5" y="5" width="5" height="55" fill="black"/>
+                                <rect x="5" y="55" width="55" height="5" fill="#000"/>
+                                <rect x="55" y="5" width="5" height="55" fill="#000"/>
+                                <!-- 内部数据单元 -->
+                                <rect x="15" y="15" width="5" height="5" fill="black"/>
+                                <rect x="25" y="15" width="5" height="5" fill="black"/>
+                                <rect x="35" y="15" width="5" height="5" fill="black"/>
+                                <rect x="45" y="15" width="5" height="5" fill="black"/>
+                                <rect x="15" y="25" width="5" height="5" fill="black"/>
+                                <rect x="30" y="25" width="5" height="5" fill="black"/>
+                                <rect x="45" y="25" width="5" height="5" fill="black"/>
+                                <rect x="20" y="35" width="5" height="5" fill="black"/>
+                                <rect x="25" y="35" width="5" height="5" fill="black"/>
+                                <rect x="40" y="35" width="5" height="5" fill="black"/>
+                                <rect x="15" y="45" width="5" height="5" fill="black"/>
+                                <rect x="35" y="45" width="5" height="5" fill="black"/>
+                                <rect x="45" y="45" width="5" height="5" fill="black"/>
+                            </svg>
+                            <span class="text-[9px] mt-0.5 text-slate-500">${escapeHtml(el.value)}</span>
+                        </div>
+                    `;
+                } 
+                else if (el.type === 'table') {
+                    const headers = el.tableHeaders.split(',');
+                    
+                    let tableHeaderHtml = `<thead class="border-b border-black"><tr>`;
+                    headers.forEach((hdr, colIdx) => {
+                        let align = "text-left";
+                        if (colIdx === headers.length - 1) align = "text-right";
+                        else if (colIdx > 0) align = "text-center";
+                        tableHeaderHtml += `<th class="py-1 ${align} font-bold text-xs">${escapeHtml(hdr)}</th>`;
+                    });
+                    tableHeaderHtml += `</tr></thead>`;
+
+                    let tableRowsHtml = `<tbody>`;
+                    let autoSum = 0;
+                    el.tableRows.forEach(row => {
+                        tableRowsHtml += `<tr class="border-b border-dashed border-slate-100 last:border-0">`;
+                        headers.forEach((hdr, colIdx) => {
+                            let align = "text-left";
+                            if (colIdx === headers.length - 1) align = "text-right";
+                            else if (colIdx > 0) align = "text-center";
+                            
+                            const cellValue = row[colIdx] || '';
+                            tableRowsHtml += `<td class="py-1 ${align} text-xs">${escapeHtml(cellValue)}</td>`;
+
+                            // 如果开启了自动算账，对末尾一列累加
+                            if (el.tableCalc && colIdx === headers.length - 1) {
+                                const numericVal = parseFloat(cellValue);
+                                if (!isNaN(numericVal)) autoSum += numericVal;
+                            }
+                        });
+                        tableRowsHtml += `</tr>`;
+                    });
+                    tableRowsHtml += `</tbody>`;
+
+                    // 自动计算汇总底部
+                    let tableFooterHtml = '';
+                    if (el.tableCalc && el.tableRows.length > 0) {
+                        tableFooterHtml = `
+                            <tfoot>
+                                <tr class="border-t border-black font-bold">
+                                    <td colspan="${headers.length - 1}" class="py-1.5 text-left text-xs">应收合计:</td>
+                                    <td class="py-1.5 text-right text-xs">${autoSum.toFixed(2)}</td>
+                                </tr>
+                            </tfoot>
+                        `;
+                    }
+
+                    innerHtml = `
+                        <table class="w-full text-left my-2">
+                            ${tableHeaderHtml}
+                            ${tableRowsHtml}
+                            ${tableFooterHtml}
+                        </table>
+                    `;
+                } 
+                else if (el.type === 'image') {
+                    innerHtml = `
+                        <div class="flex justify-center my-1.5">
+                            <img src="${el.value}" style="width: ${el.imageWidth}px; height: auto;" alt="Logo" class="max-w-full">
+                        </div>
+                    `;
+                }
+
+                // 添加快捷移动删除按钮覆盖层 (仅在 hover 时可见)
+                const overlayHtml = `
+                    <div class="no-print absolute top-1/2 -translate-y-1/2 right-1 hidden group-hover:flex items-center space-x-1 bg-white/90 shadow rounded-md px-1 py-0.5 border border-slate-200 z-10">
+                        <button onclick="event.stopPropagation(); quickMoveElement('${el.id}', 'up')" class="p-1 hover:bg-slate-100 rounded text-slate-600" title="上移"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="event.stopPropagation(); quickMoveElement('${el.id}', 'down')" class="p-1 hover:bg-slate-100 rounded text-slate-600" title="下移"><i data-lucide="chevron-down" class="w-3.5 h-3.5"></i></button>
+                        <button onclick="event.stopPropagation(); quickDeleteElement('${el.id}')" class="p-1 hover:bg-red-50 hover:text-red-500 rounded text-slate-400" title="删除"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                `;
+
+                outerDiv.innerHTML = innerHtml + overlayHtml;
+                holder.appendChild(outerDiv);
+
+                // 渲染后置逻辑：对条形码 / 二维码进行 JS 生成
+                if (el.type === 'barcode') {
+                    try {
+                        JsBarcode(`#canvas-barcode-${el.id}`, el.value, {
+                            format: "CODE128",
+                            width: el.barcodeWidth,
+                            height: el.barcodeHeight,
+                            displayValue: el.displayValue,
+                            fontSize: 11,
+                            margin: 0,
+                            background: "transparent",
+                            lineColor: "#000"
+                        });
+                    } catch (err) {
+                        console.error("条形码生成出错: ", err);
+                    }
+                } 
+                else if (el.type === 'qrcode') {
+                    try {
+                        const qrDiv = document.getElementById(`canvas-qrcode-${el.id}`);
+                        qrDiv.innerHTML = '';
+                        new QRCode(qrDiv, {
+                            text: el.value,
+                            width: el.qrcodeSize,
+                            height: el.qrcodeSize,
+                            colorDark : "#000000",
+                            colorLight : "#ffffff",
+                            correctLevel : QRCode.CorrectLevel.M
+                        });
+                    } catch (err) {
+                        console.error("二维码生成错误: ", err);
+                    }
+                }
+            });
+
+            // 重新刷新 Lucide 图标
+            lucide.createIcons();
+            
+            // 保持选中元素高亮
+            if (selectedElementId) {
+                const activeCard = document.querySelector(`.receipt-card[data-id="${selectedElementId}"]`);
+                if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
+            }
+        }
+
+        // 快捷栏移动元素
+        function quickMoveElement(id, direction) {
+            const index = receiptElements.findIndex(item => item.id === id);
+            if (index === -1) return;
+
+            if (direction === 'up' && index > 0) {
+                const temp = receiptElements[index];
+                receiptElements[index] = receiptElements[index - 1];
+                receiptElements[index - 1] = temp;
+                renderReceipt();
+            } else if (direction === 'down' && index < receiptElements.length - 1) {
+                const temp = receiptElements[index];
+                receiptElements[index] = receiptElements[index + 1];
+                receiptElements[index + 1] = temp;
+                renderReceipt();
+            }
+        }
+
+        // 快捷栏删除元素
+        function quickDeleteElement(id) {
+            receiptElements = receiptElements.filter(item => item.id !== id);
+            if (selectedElementId === id) hideAllPanels();
+            renderReceipt();
+            showToast('已删除对应组件');
+        }
+
+
+        /* ================== 经典模板载入逻辑 ================== */
+        function showTemplatesModal() {
+            document.getElementById('templates-modal').classList.remove('hidden');
+        }
+
+        function hideTemplatesModal() {
+            document.getElementById('templates-modal').classList.add('hidden');
+        }
+
+        // 统一小票实体转义
+        function escapeHtml(string) {
+            return String(string).replace(/[&<>"']/g, function (s) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[s];
+            });
+        }
+
+        // 载入模板方法
+        function loadTemplate(type) {
+            hideTemplatesModal();
+            hideAllPanels();
+            
+            if (type === 'restaurant') {
+                // 完美还原 image_a1ba27 餐饮小票
+                receiptElements = [
+                    createNewElement('h1', '×××饭店', { size: 26 }),
+                    createNewElement('h2', '结账单', { size: 16 }),
+                    createNewElement('text', '餐桌:  10号\n单号:  NO484843544\n时间:  2025年01月26日', { align: 'left', size: 13 }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('table', '', {
+                        tableHeaders: "品名,数量,价格,金额",
+                        tableRows: [
+                            ["四人套餐（位）", "1", "190", "190"],
+                            ["黑啤", "1", "19", "19"]
+                        ],
+                        tableCalc: false // 不使用默认求和，手动完美展现底部消费结构
+                    }),
+                    createNewElement('line', '', { lineStyle: 'solid' }),
+                    createNewElement('text', '消费金额: 209.00     应收合计: 209.00', { align: 'left', weight: 'bold', size: 13 }),
+                    createNewElement('line', '', { lineStyle: 'solid' }),
+                    createNewElement('text', '买单:  209.00\n编号1', { align: 'left', size: 13 }),
+                    createNewElement('text', '谢谢惠顾，欢迎再次光临!', { align: 'center', size: 12, extraSpacing: true })
+                ];
+                setPaperWidth('58mm');
+            } 
+            else if (type === 'clothes') {
+                // 完美还原 image_a20be0 服装小票
+                receiptElements = [
+                    createNewElement('text', '----------收据备份联----------', { align: 'center', size: 12 }),
+                    createNewElement('h1', '收银小票', { size: 26 }),
+                    createNewElement('h2', 'xxx服装店', { size: 16 }),
+                    createNewElement('barcode', '1txm.com', { barcodeHeight: 45, barcodeWidth: 1.5, displayValue: true }),
+                    createNewElement('text', '收银员姓名: 006\n2025年02月01日', { align: 'left', size: 13 }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('table', '', {
+                        tableHeaders: "货号品项,单价,数量,单位,小计",
+                        tableRows: [
+                            ["夏季连衣裙长款", "299", "1", "件", "299"]
+                        ],
+                        tableCalc: false
+                    }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('text', '商品总数: 1         实收: 299\n支付方式: 现金       找零: 0', { align: 'left', size: 13 }),
+                    createNewElement('text', '商品如有质量问题7天内凭票退换', { align: 'center', weight: 'bold', size: 14 }),
+                    createNewElement('text', '联系电话: 001-123456789\n营业时间: 9:00—22:30', { align: 'left', size: 12 })
+                ];
+                setPaperWidth('58mm');
+            } 
+            else if (type === 'market') {
+                // 标准超市多商品购物清单 & 底部付款码
+                receiptElements = [
+                    createNewElement('h1', '快达超市零售明细', { size: 22 }),
+                    createNewElement('text', '单号: SO-2026-0523001\n收银员: 8021\n时间: 2026-05-23 13:28', { align: 'left', size: 11 }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('table', '', {
+                        tableHeaders: "商品名称,单价,数量,小计",
+                        tableRows: [
+                            ["农夫山泉500ml", "2.00", "3", "6.00"],
+                            ["乐事薯片(原味)", "7.50", "2", "15.00"],
+                            ["德芙黑巧克力", "12.00", "1", "12.00"],
+                            ["特仑苏有机奶", "65.00", "1", "65.00"]
+                        ],
+                        tableCalc: true
+                    }),
+                    createNewElement('line', '', { lineStyle: 'dashed' }),
+                    createNewElement('text', '欢迎扫描下方二维码进入会员体系\n尊享多重积分兑换！', { align: 'center', size: 11 }),
+                    createNewElement('qrcode', 'https://www.baidu.com', { qrcodeSize: 90 })
+                ];
+                setPaperWidth('80mm');
+            } 
+            else if (type === 'blank') {
+                receiptElements = [];
+                setPaperWidth('58mm');
+            }
+
+            renderReceipt();
+            showToast('模板载入成功！');
+        }
+
+
+        /* ================== 核心一键打印 ================== */
+        function printReceipt() {
+            // 在打印前，临时取消选中的外框样式
+            const tempSelected = selectedElementId;
+            hideAllPanels();
+            renderReceipt();
+            
+            // 延时等待浏览器对重新渲染后的二维码条码完成渲染后再调起打印
+            setTimeout(() => {
+                window.print();
+                // 恢复先前选中的节点
+                if (tempSelected) {
+                    selectElement(tempSelected);
+                }
+            }, 300);
+        }
+    </script>
+</body>
+</html>
