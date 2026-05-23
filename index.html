@@ -256,7 +256,7 @@
         <!-- 2. 中间：画布工作区 -->
         <main class="flex-1 overflow-y-auto bg-slate-100 flex flex-col items-center py-6 px-4 relative">
             
-            <!-- 🎨 全局版面样式变幻快捷栏 (新增：解决千篇一律需求) -->
+            <!-- 🎨 全局版面样式变幻快捷栏 -->
             <div class="no-print max-w-xl w-full bg-slate-800 text-white rounded-2xl p-4 mb-6 shadow-xl flex flex-col space-y-3 border border-slate-700">
                 <div class="flex items-center justify-between">
                     <span class="text-xs font-bold text-slate-400 flex items-center">
@@ -321,10 +321,59 @@
 
             <!-- 属性调节区 -->
             <div id="properties-panel" class="flex-1 overflow-y-auto p-4 space-y-5">
-                <!-- 空态提示 -->
-                <div id="panel-empty-state" class="h-full flex flex-col items-center justify-center text-slate-400 text-center py-20">
-                    <i data-lucide="mouse-pointer" class="w-10 h-10 mb-3 text-slate-300 animate-bounce"></i>
-                    <p class="text-xs">点击左边小票任意组件<br>即可实时在此处调整内容与格式</p>
+                <!-- 全局版面小票设计 (当没有选中任何元素时展示) -->
+                <div id="panel-global-architect" class="space-y-4">
+                    <div class="bg-blue-50/50 rounded-xl p-3 border border-blue-100">
+                        <h3 class="text-xs font-bold text-blue-700 flex items-center mb-1">
+                            <i data-lucide="palette" class="w-4 h-4 mr-1 text-blue-600"></i>
+                            <span>全局物理版式控制 (Global Architect)</span>
+                        </h3>
+                        <p class="text-[10px] text-slate-500 leading-relaxed">
+                            点击小票中空白区域即可返回此面板。通过修改背景、表格形式和票据工艺，实现极致差异化。
+                        </p>
+                    </div>
+
+                    <!-- 1. 防伪水印 -->
+                    <div class="space-y-1.5">
+                        <label class="block text-xs font-bold text-slate-500">巨幅防伪背景水印</label>
+                        <input type="text" id="global-wm-text" oninput="updateGlobalWatermarkText(this.value)" class="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" placeholder="输入水印文案, 如: 堂食 / VIP">
+                        
+                        <div class="flex items-center justify-between text-[10px] text-slate-400 mt-1">
+                            <span>透明度: <span id="wm-opacity-val">8%</span></span>
+                            <input type="range" id="global-wm-opacity" min="0" max="30" step="1" oninput="updateGlobalWatermarkOpacity(this.value)" class="w-24 accent-blue-600">
+                        </div>
+                    </div>
+
+                    <!-- 2. 信息并排布局 -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">餐台元数据排版模式</label>
+                        <select id="global-meta-cols" onchange="updateGlobalMetadataCols(this.value)" class="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none">
+                            <option value="1col">传统单列堆叠 (1 Column)</option>
+                            <option value="2col">智能双列并排 (2 Columns)</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">将餐台元数据自动转化为2列卡片网格，适合现代紧凑风格店铺。</p>
+                    </div>
+
+                    <!-- 3. 表格呈现样式 -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">商品明细单呈现风格</label>
+                        <select id="global-table-style" onchange="updateGlobalTableStyle(this.value)" class="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none">
+                            <option value="standard">标准明细网格 (Standard Columns)</option>
+                            <option value="dots">经典复古点阵对齐 (Dotted Classic)</option>
+                            <option value="boxed">封闭式边框卡片 (Boxed Card)</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">点阵对齐采用咖啡店喜爱的点连线布局，免除冷冰冰的实线；封闭卡片则给商品包围高级黑框。</p>
+                    </div>
+
+                    <!-- 4. 纸张切边工艺 -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1.5">票据打孔切边工艺</label>
+                        <select id="global-ticket-stub" onchange="updateGlobalTicketStub(this.value)" class="w-full p-2 text-xs border border-slate-200 rounded-lg bg-white outline-none">
+                            <option value="none">无切角打孔 (普通连续纸)</option>
+                            <option value="circle-notches">双侧半圆打孔切口 (Coupon Stub)</option>
+                        </select>
+                        <p class="text-[10px] text-slate-400 mt-1">模拟电影票或贵宾兑换联中部的半圆刀口裁切，极富立体裁切质感！</p>
+                    </div>
                 </div>
 
                 <!-- 1. 文字型属性编辑器 (标题 / 副标题 / 文本) -->
@@ -637,16 +686,48 @@
             ]
         };
 
-        // 核心内存数据
+        // 核心内存数据与小票全局物理架构属性
         let receiptElements = [];
         let selectedElementId = null;
         let paperWidthMode = '58mm'; // '58mm' or '80mm'
         let hasThermalSimulation = true;
 
+        // 全局小票工艺状态
+        let globalWatermarkText = "堂食 15";
+        let globalWatermarkOpacity = 0.08;
+        let globalTableStyle = "standard";   // "standard"(标准网格) | "dots"(点阵点连线) | "boxed"(封闭卡片)
+        let globalMetadataCols = "1col";     // "1col"(单列堆叠) | "2col"(并排两列)
+        let globalTicketStub = "none";       // "none"(平卷纸) | "circle-notches"(两侧打孔半圆切口)
+
+        // 💡 通用安全设置元素可见性辅助函数 (防Null报错防崩溃)
+        function setElementVisibility(id, visible) {
+            const el = document.getElementById(id);
+            if (el) {
+                if (visible) {
+                    el.classList.remove('hidden');
+                } else {
+                    el.classList.add('hidden');
+                }
+            }
+        }
+
         // 默认初始化加载餐饮结账单
         window.onload = function() {
             lucide.createIcons();
             loadTemplate('restaurant_preview'); // 初始化直接展示最新的 bd51e9 模板给用户体验
+            
+            // 点击画布空白区域，退回到全局设置面板
+            const paper = document.getElementById('receipt-paper');
+            if (paper) {
+                paper.addEventListener('click', function(e) {
+                    if (!e.target.closest('.receipt-card')) {
+                        hideAllPanels();
+                        selectGlobalArchitect();
+                    }
+                });
+            }
+            // 初始化全局参数面板显示
+            selectGlobalArchitect();
         };
 
         // 触发自适应 Toast
@@ -655,22 +736,28 @@
             const toastMessage = document.getElementById('toast-message');
             const toastIcon = document.getElementById('toast-icon');
 
-            toastMessage.textContent = msg;
-            if (isError) {
-                toastIcon.setAttribute('data-lucide', 'alert-triangle');
-                toastIcon.className = "text-red-400 w-4 h-4";
-            } else {
-                toastIcon.setAttribute('data-lucide', 'check-circle-2');
-                toastIcon.className = "text-green-400 w-4 h-4";
+            if (toastMessage) toastMessage.textContent = msg;
+            if (toastIcon) {
+                if (isError) {
+                    toastIcon.setAttribute('data-lucide', 'alert-triangle');
+                    toastIcon.className = "text-red-400 w-4 h-4";
+                } else {
+                    toastIcon.setAttribute('data-lucide', 'check-circle-2');
+                    toastIcon.className = "text-green-400 w-4 h-4";
+                }
             }
             lucide.createIcons();
 
-            toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
-            toast.classList.add('opacity-100', 'translate-y-0');
+            if (toast) {
+                toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+                toast.classList.add('opacity-100', 'translate-y-0');
+            }
 
             setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
-                toast.classList.remove('opacity-100', 'translate-y-0');
+                if (toast) {
+                    toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+                    toast.classList.remove('opacity-100', 'translate-y-0');
+                }
             }, 2500);
         }
 
@@ -682,16 +769,18 @@
             const btn80 = document.getElementById('btn-80mm');
             const labelWidth = document.getElementById('label-width');
 
-            if (width === '58mm') {
-                paper.style.width = '380px';
-                btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
-                btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
-                labelWidth.textContent = "当前宽度: 58mm (约380像素)";
-            } else {
-                paper.style.width = '520px';
-                btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
-                btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
-                labelWidth.textContent = "当前宽度: 80mm (约520像素)";
+            if (paper) {
+                if (width === '58mm') {
+                    paper.style.width = '380px';
+                    if (btn58) btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
+                    if (btn80) btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
+                    if (labelWidth) labelWidth.textContent = "当前宽度: 58mm (约380像素)";
+                } else {
+                    paper.style.width = '520px';
+                    if (btn80) btn80.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-blue-600 text-white shadow-sm";
+                    if (btn58) btn58.className = "px-3 py-1.5 rounded-md text-xs font-medium transition-all text-slate-300 hover:text-white";
+                    if (labelWidth) labelWidth.textContent = "当前宽度: 80mm (约520像素)";
+                }
             }
             renderReceipt();
             showToast(`已成功切换为 ${width} 纸宽`);
@@ -703,12 +792,14 @@
             const paper = document.getElementById('receipt-paper');
             const btn = document.getElementById('btn-simulation');
 
-            if (hasThermalSimulation) {
-                paper.classList.add('thermal-simulation');
-                btn.innerHTML = `<i data-lucide="eye" class="w-4 h-4 text-green-400"></i><span>热敏效果预览</span>`;
-            } else {
-                paper.classList.remove('thermal-simulation');
-                btn.innerHTML = `<i data-lucide="eye-off" class="w-4 h-4 text-slate-400"></i><span>纯白无尘模式</span>`;
+            if (paper && btn) {
+                if (hasThermalSimulation) {
+                    paper.classList.add('thermal-simulation');
+                    btn.innerHTML = `<i data-lucide="eye" class="w-4 h-4 text-green-400"></i><span>热敏效果预览</span>`;
+                } else {
+                    paper.classList.remove('thermal-simulation');
+                    btn.innerHTML = `<i data-lucide="eye-off" class="w-4 h-4 text-slate-400"></i><span>纯白无尘模式</span>`;
+                }
             }
             lucide.createIcons();
         }
@@ -842,9 +933,39 @@
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el && el.type === 'image') {
                 el.imageWidth = val;
-                document.getElementById('prop-image-width').value = val;
+                const imgWidthInput = document.getElementById('prop-image-width');
+                if (imgWidthInput) imgWidthInput.value = val;
                 renderReceipt();
             }
+        }
+
+        // 激活展示全局控制台
+        function selectGlobalArchitect() {
+            selectedElementId = null;
+            setElementVisibility('selected-type-badge', false);
+            setElementVisibility('panel-empty-state', false);
+            setElementVisibility('panel-actions-wrapper', false);
+            
+            // 展示全局版面配置并同步输入控件状态
+            setElementVisibility('panel-global-architect', true);
+            
+            const gwmText = document.getElementById('global-wm-text');
+            if (gwmText) gwmText.value = globalWatermarkText;
+            
+            const gwmOpacity = document.getElementById('global-wm-opacity');
+            if (gwmOpacity) gwmOpacity.value = Math.round(globalWatermarkOpacity * 100);
+            
+            const wmOpacityVal = document.getElementById('wm-opacity-val');
+            if (wmOpacityVal) wmOpacityVal.textContent = Math.round(globalWatermarkOpacity * 100) + "%";
+            
+            const gMetaCols = document.getElementById('global-meta-cols');
+            if (gMetaCols) gMetaCols.value = globalMetadataCols;
+            
+            const gTableStyle = document.getElementById('global-table-style');
+            if (gTableStyle) gTableStyle.value = globalTableStyle;
+            
+            const gTicketStub = document.getElementById('global-ticket-stub');
+            if (gTicketStub) gTicketStub.value = globalTicketStub;
         }
 
         // 选中元素节点并加载属性
@@ -863,68 +984,102 @@
             const el = receiptElements.find(item => item.id === id);
             if (!el) {
                 hideAllPanels();
+                selectGlobalArchitect();
                 return;
             }
 
             const badge = document.getElementById('selected-type-badge');
-            badge.textContent = el.type.toUpperCase();
-            badge.classList.remove('hidden');
+            if (badge) {
+                badge.textContent = el.type.toUpperCase();
+                badge.classList.remove('hidden');
+            }
 
-            document.getElementById('panel-empty-state').classList.add('hidden');
-            document.getElementById('panel-actions-wrapper').classList.remove('hidden');
+            setElementVisibility('panel-empty-state', false);
+            setElementVisibility('panel-global-architect', false); // 隐藏全局，显示局部
+            setElementVisibility('panel-actions-wrapper', true);
 
-            document.getElementById('panel-editor-text').classList.add('hidden');
-            document.getElementById('panel-editor-line').classList.add('hidden');
-            document.getElementById('panel-editor-code').classList.add('hidden');
-            document.getElementById('panel-editor-table').classList.add('hidden');
-            document.getElementById('panel-editor-image').classList.add('hidden');
+            setElementVisibility('panel-editor-text', false);
+            setElementVisibility('panel-editor-line', false);
+            setElementVisibility('panel-editor-code', false);
+            setElementVisibility('panel-editor-table', false);
+            setElementVisibility('panel-editor-image', false);
 
             if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
-                document.getElementById('panel-editor-text').classList.remove('hidden');
-                document.getElementById('prop-text-content').value = el.value;
-                document.getElementById('prop-text-size').value = el.size;
-                document.getElementById('prop-text-weight').value = el.weight;
-                document.getElementById('prop-text-extra-spacing').checked = el.extraSpacing;
+                setElementVisibility('panel-editor-text', true);
                 
-                document.getElementById('btn-align-left').className = el.align === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
-                document.getElementById('btn-align-center').className = el.align === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
-                document.getElementById('btn-align-right').className = el.align === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                const propTextContent = document.getElementById('prop-text-content');
+                if (propTextContent) propTextContent.value = el.value;
+
+                const propTextSize = document.getElementById('prop-text-size');
+                if (propTextSize) propTextSize.value = el.size;
+
+                const propTextWeight = document.getElementById('prop-text-weight');
+                if (propTextWeight) propTextWeight.value = el.weight;
+
+                const propTextExtraSpacing = document.getElementById('prop-text-extra-spacing');
+                if (propTextExtraSpacing) propTextExtraSpacing.checked = el.extraSpacing;
+                
+                const alignLeftBtn = document.getElementById('btn-align-left');
+                const alignCenterBtn = document.getElementById('btn-align-center');
+                const alignRightBtn = document.getElementById('btn-align-right');
+
+                if (alignLeftBtn) alignLeftBtn.className = el.align === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                if (alignCenterBtn) alignCenterBtn.className = el.align === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                if (alignRightBtn) alignRightBtn.className = el.align === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
             } 
             else if (el.type === 'line') {
-                document.getElementById('panel-editor-line').classList.remove('hidden');
-                document.getElementById('prop-line-style').value = el.lineStyle;
+                setElementVisibility('panel-editor-line', true);
+                const propLineStyle = document.getElementById('prop-line-style');
+                if (propLineStyle) propLineStyle.value = el.lineStyle;
             } 
             else if (el.type === 'barcode' || el.type === 'qrcode' || el.type === 'pdf417' || el.type === 'datamatrix') {
-                document.getElementById('panel-editor-code').classList.remove('hidden');
-                document.getElementById('prop-code-value').value = el.value;
+                setElementVisibility('panel-editor-code', true);
+                const propCodeValue = document.getElementById('prop-code-value');
+                if (propCodeValue) propCodeValue.value = el.value;
 
                 if (el.type === 'barcode') {
-                    document.getElementById('barcode-only-props').classList.remove('hidden');
-                    document.getElementById('qrcode-only-props').classList.add('hidden');
-                    document.getElementById('prop-barcode-height').value = el.barcodeHeight;
-                    document.getElementById('prop-barcode-width').value = el.barcodeWidth;
-                    document.getElementById('prop-barcode-display').checked = el.displayValue;
+                    setElementVisibility('barcode-only-props', true);
+                    setElementVisibility('qrcode-only-props', false);
+                    
+                    const propBarcodeHeight = document.getElementById('prop-barcode-height');
+                    if (propBarcodeHeight) propBarcodeHeight.value = el.barcodeHeight;
+
+                    const propBarcodeWidth = document.getElementById('prop-barcode-width');
+                    if (propBarcodeWidth) propBarcodeWidth.value = el.barcodeWidth;
+
+                    const propBarcodeDisplay = document.getElementById('prop-barcode-display');
+                    if (propBarcodeDisplay) propBarcodeDisplay.checked = el.displayValue;
                 } else if (el.type === 'qrcode') {
-                    document.getElementById('barcode-only-props').classList.add('hidden');
-                    document.getElementById('qrcode-only-props').classList.remove('hidden');
-                    document.getElementById('prop-qrcode-size').value = el.qrcodeSize;
+                    setElementVisibility('barcode-only-props', false);
+                    setElementVisibility('qrcode-only-props', true);
+
+                    const propQrcodeSize = document.getElementById('prop-qrcode-size');
+                    if (propQrcodeSize) propQrcodeSize.value = el.qrcodeSize;
                 } else {
-                    document.getElementById('barcode-only-props').classList.add('hidden');
-                    document.getElementById('qrcode-only-props').classList.add('hidden');
+                    setElementVisibility('barcode-only-props', false);
+                    setElementVisibility('qrcode-only-props', false);
                 }
             } 
             else if (el.type === 'table') {
-                document.getElementById('panel-editor-table').classList.remove('hidden');
-                document.getElementById('prop-table-headers').value = el.tableHeaders;
-                document.getElementById('prop-table-calc').checked = el.tableCalc;
+                setElementVisibility('panel-editor-table', true);
+
+                const propTableHeaders = document.getElementById('prop-table-headers');
+                if (propTableHeaders) propTableHeaders.value = el.tableHeaders;
+
+                const propTableCalc = document.getElementById('prop-table-calc');
+                if (propTableCalc) propTableCalc.checked = el.tableCalc;
                 
-                const labelWrapper = document.getElementById('table-calc-label-wrapper');
-                if (el.tableCalc) {
-                    labelWrapper.classList.remove('hidden');
-                } else {
-                    labelWrapper.classList.add('hidden');
+                const labelWrapper = document.getElementById('table-calc-wrapper');
+                if (labelWrapper) {
+                    if (el.tableCalc) {
+                        labelWrapper.classList.remove('hidden');
+                    } else {
+                        labelWrapper.classList.add('hidden');
+                    }
                 }
-                document.getElementById('prop-table-calc-label').value = el.tableCalcLabel || "应收合计:";
+
+                const propTableCalcLabel = document.getElementById('prop-table-calc-label');
+                if (propTableCalcLabel) propTableCalcLabel.value = el.tableCalcLabel || "应收合计:";
 
                 let totalSum = 0;
                 const headers = el.tableHeaders.split(',');
@@ -935,8 +1090,11 @@
                 });
                 if (totalSum <= 0) totalSum = 180;
 
-                document.getElementById('prop-table-gen-total').value = Math.round(totalSum);
-                document.getElementById('prop-table-gen-count').value = el.tableRows.length || 3;
+                const propTableGenTotal = document.getElementById('prop-table-gen-total');
+                if (propTableGenTotal) propTableGenTotal.value = Math.round(totalSum);
+
+                const propTableGenCount = document.getElementById('prop-table-gen-count');
+                if (propTableGenCount) propTableGenCount.value = el.tableRows.length || 3;
 
                 let guessedTheme = 'restaurant';
                 if (el.tableHeaders.includes("货号品项")) {
@@ -944,58 +1102,77 @@
                 } else if (el.tableHeaders.includes("商品名称")) {
                     guessedTheme = "market";
                 }
-                document.getElementById('prop-table-gen-theme').value = guessedTheme;
+                const propTableGenTheme = document.getElementById('prop-table-gen-theme');
+                if (propTableGenTheme) propTableGenTheme.value = guessedTheme;
                 
                 renderTableRowsEditor(el);
             }
             else if (el.type === 'image') {
-                document.getElementById('panel-editor-image').classList.remove('hidden');
-                document.getElementById('prop-image-width').value = el.imageWidth;
+                setElementVisibility('panel-editor-image', true);
+                const propImageWidth = document.getElementById('prop-image-width');
+                if (propImageWidth) propImageWidth.value = el.imageWidth;
             }
         }
 
         // 隐藏所有属性面板
         function hideAllPanels() {
-            document.getElementById('panel-empty-state').classList.remove('hidden');
-            document.getElementById('panel-actions-wrapper').classList.add('hidden');
-            document.getElementById('selected-type-badge').classList.add('hidden');
+            setElementVisibility('panel-empty-state', true);
+            setElementVisibility('panel-actions-wrapper', false);
+            setElementVisibility('selected-type-badge', false);
             
-            document.getElementById('panel-editor-text').classList.add('hidden');
-            document.getElementById('panel-editor-line').classList.add('hidden');
-            document.getElementById('panel-editor-code').classList.add('hidden');
-            document.getElementById('panel-editor-table').classList.add('hidden');
-            document.getElementById('panel-editor-image').classList.add('hidden');
+            setElementVisibility('panel-global-architect', false);
+            setElementVisibility('panel-editor-text', false);
+            setElementVisibility('panel-editor-line', false);
+            setElementVisibility('panel-editor-code', false);
+            setElementVisibility('panel-editor-table', false);
+            setElementVisibility('panel-editor-image', false);
             selectedElementId = null;
         }
 
-        // 属性变动更新
+        // 从控制台更新选中元素并重新渲染
         function updateSelectedElement() {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (!el) return;
 
             if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
-                el.value = document.getElementById('prop-text-content').value;
-                el.size = parseInt(document.getElementById('prop-text-size').value) || 12;
-                el.weight = document.getElementById('prop-text-weight').value;
-                el.extraSpacing = document.getElementById('prop-text-extra-spacing').checked;
+                const textContent = document.getElementById('prop-text-content');
+                if (textContent) el.value = textContent.value;
+
+                const textSize = document.getElementById('prop-text-size');
+                if (textSize) el.size = parseInt(textSize.value) || 12;
+
+                const textWeight = document.getElementById('prop-text-weight');
+                if (textWeight) el.weight = textWeight.value;
+
+                const textExtraSpacing = document.getElementById('prop-text-extra-spacing');
+                if (textExtraSpacing) el.extraSpacing = textExtraSpacing.checked;
             } 
             else if (el.type === 'line') {
-                el.lineStyle = document.getElementById('prop-line-style').value;
+                const lineStyle = document.getElementById('prop-line-style');
+                if (lineStyle) el.lineStyle = lineStyle.value;
             } 
             else if (el.type === 'barcode' || el.type === 'qrcode' || el.type === 'pdf417' || el.type === 'datamatrix') {
-                el.value = document.getElementById('prop-code-value').value;
+                const codeValue = document.getElementById('prop-code-value');
+                if (codeValue) el.value = codeValue.value;
 
                 if (el.type === 'barcode') {
-                    el.barcodeHeight = parseInt(document.getElementById('prop-barcode-height').value) || 30;
-                    el.barcodeWidth = parseFloat(document.getElementById('prop-barcode-width').value) || 1;
-                    el.displayValue = document.getElementById('prop-barcode-display').checked;
+                    const barcodeHeight = document.getElementById('prop-barcode-height');
+                    if (barcodeHeight) el.barcodeHeight = parseInt(barcodeHeight.value) || 30;
+
+                    const barcodeWidth = document.getElementById('prop-barcode-width');
+                    if (barcodeWidth) el.barcodeWidth = parseFloat(barcodeWidth.value) || 1;
+
+                    const barcodeDisplay = document.getElementById('prop-barcode-display');
+                    if (barcodeDisplay) el.displayValue = barcodeDisplay.checked;
                 } else if (el.type === 'qrcode') {
-                    el.qrcodeSize = parseInt(document.getElementById('prop-qrcode-size').value) || 80;
+                    const qrcodeSize = document.getElementById('prop-qrcode-size');
+                    if (qrcodeSize) el.qrcodeSize = parseInt(qrcodeSize.value) || 80;
                 }
             }
             else if (el.type === 'image') {
-                el.imageWidth = parseInt(document.getElementById('prop-image-width').value) || 80;
+                const imageWidth = document.getElementById('prop-image-width');
+                if (imageWidth) el.imageWidth = parseInt(imageWidth.value) || 80;
             }
 
             renderReceipt();
@@ -1003,18 +1180,25 @@
             if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
         }
 
+        // 设置文本对齐
         function setAlign(alignment) {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el) {
                 el.align = alignment;
                 updateSelectedElement();
-                document.getElementById('btn-align-left').className = alignment === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
-                document.getElementById('btn-align-center').className = alignment === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
-                document.getElementById('btn-align-right').className = alignment === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                
+                const alignLeftBtn = document.getElementById('btn-align-left');
+                const alignCenterBtn = document.getElementById('btn-align-center');
+                const alignRightBtn = document.getElementById('btn-align-right');
+
+                if (alignLeftBtn) alignLeftBtn.className = alignment === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                if (alignCenterBtn) alignCenterBtn.className = alignment === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
+                if (alignRightBtn) alignRightBtn.className = alignment === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
             }
         }
 
+        // 移动元素
         function moveCurrentElement(direction) {
             if (!selectedElementId) return;
             const index = receiptElements.findIndex(item => item.id === selectedElementId);
@@ -1035,6 +1219,7 @@
             }
         }
 
+        // 删除选中元素
         function deleteCurrentElement() {
             if (!selectedElementId) return;
             receiptElements = receiptElements.filter(item => item.id !== selectedElementId);
@@ -1043,6 +1228,7 @@
             showToast('已删除该行组件');
         }
 
+        // 清空小票画布
         function confirmClearReceipt() {
             if (receiptElements.length === 0) {
                 showToast('画布本身已是空态');
@@ -1055,33 +1241,74 @@
         }
 
 
-        /* ================== 🎨 新增：智能排版风格主题换装引擎 ================== */
+        /* ================== 🎨 全局小票工艺与排版控制处理器 ================== */
+        function updateGlobalWatermarkText(val) {
+            globalWatermarkText = val;
+            renderReceipt();
+        }
+
+        function updateGlobalWatermarkOpacity(val) {
+            globalWatermarkOpacity = parseFloat(val) / 100;
+            const wmOpacityVal = document.getElementById('wm-opacity-val');
+            if (wmOpacityVal) wmOpacityVal.textContent = val + "%";
+            renderReceipt();
+        }
+
+        function updateGlobalMetadataCols(val) {
+            globalMetadataCols = val;
+            renderReceipt();
+        }
+
+        function updateGlobalTableStyle(val) {
+            globalTableStyle = val;
+            renderReceipt();
+        }
+
+        function updateGlobalTicketStub(val) {
+            globalTicketStub = val;
+            renderReceipt();
+        }
+
+
+        /* ================== 🎨 智能排版风格主题换装与彻底乱置引擎 ================== */
         
-        // 预设主题配置
+        // 预设四套完全不同的全局票据美学规则
         const THEME_RULES = {
             classic: {
                 h1Size: 26, h2Size: 18, textSize: 13,
                 h1Weight: 'bold', textWeight: 'normal',
                 align: 'center', extraSpacing: false,
-                lineStyle: 'dashed', barcodeHeight: 45
+                lineStyle: 'dashed', barcodeHeight: 45,
+                // 工艺属性
+                wmText: "", wmOpacity: 0.0,
+                metaCols: "1col", tableStyle: "standard", ticketStub: "none"
             },
             minimalist: {
                 h1Size: 22, h2Size: 15, textSize: 12,
                 h1Weight: 'bold', textWeight: 'normal',
                 align: 'left', extraSpacing: false,
-                lineStyle: 'solid', barcodeHeight: 35
+                lineStyle: 'solid', barcodeHeight: 35,
+                // 工艺属性
+                wmText: "MINIMAL", wmOpacity: 0.05,
+                metaCols: "2col", tableStyle: "standard", ticketStub: "none"
             },
             elegant: {
                 h1Size: 28, h2Size: 19, textSize: 14,
                 h1Weight: 'bold', textWeight: 'normal',
                 align: 'center', extraSpacing: true,
-                lineStyle: 'double', barcodeHeight: 50
+                lineStyle: 'double', barcodeHeight: 50,
+                // 工艺属性
+                wmText: "VIP TICKET", wmOpacity: 0.09,
+                metaCols: "2col", tableStyle: "dots", ticketStub: "circle-notches"
             },
             compact: {
                 h1Size: 20, h2Size: 14, textSize: 11,
                 h1Weight: 'bold', textWeight: 'normal',
                 align: 'left', extraSpacing: false,
-                lineStyle: 'dashed', barcodeHeight: 28
+                lineStyle: 'dashed', barcodeHeight: 28,
+                // 工艺属性
+                wmText: "", wmOpacity: 0.0,
+                metaCols: "2col", tableStyle: "standard", ticketStub: "none"
             }
         };
 
@@ -1090,6 +1317,7 @@
             const rules = THEME_RULES[themeName];
             if (!rules) return;
 
+            // 应用基础字重字号
             receiptElements.forEach(el => {
                 if (el.type === 'h1') {
                     el.size = rules.h1Size;
@@ -1104,7 +1332,6 @@
                 } else if (el.type === 'text') {
                     el.size = rules.textSize;
                     el.weight = rules.textWeight;
-                    // 订单正文类普通信息：如果是极简或省纸模式则左对齐，其它保持
                     if (rules.align === 'left') {
                         el.align = 'left';
                     }
@@ -1116,15 +1343,20 @@
                 }
             });
 
+            // 深度变幻全局排版参数
+            globalWatermarkText = rules.wmText;
+            globalWatermarkOpacity = rules.wmOpacity;
+            globalMetadataCols = rules.metaCols;
+            globalTableStyle = rules.tableStyle;
+            globalTicketStub = rules.ticketStub;
+
             renderReceipt();
-            // 如果有正在编辑的，重塑其属性展示
-            if (selectedElementId) {
-                selectElement(selectedElementId);
-            }
-            showToast(`已成功套用 "${themeName === 'classic' ? '复古针式' : themeName === 'minimalist' ? '现代极简' : themeName === 'elegant' ? '尊贵轻奢' : '极限省纸'}" 视觉风格！`);
+            selectGlobalArchitect(); // 重置并刷新属性台配置
+            
+            showToast(`已套用 "${themeName === 'classic' ? '复古针式' : themeName === 'minimalist' ? '现代极简' : themeName === 'elegant' ? '尊贵轻奢' : '极限省纸'}" 全局票据架构！`);
         }
 
-        // 🎲 核心新增：一键随机打乱/变幻排版 (彻底规避千篇一律)
+        // 🎲 一键随机打乱/变幻排版 (大物理参数打散，杜绝千篇一律)
         function shuffleCurrentLayout() {
             if (receiptElements.length === 0) {
                 showToast('当前画布无组件，请先加载一个经典模板！', true);
@@ -1133,47 +1365,53 @@
 
             const alignStyles = ['left', 'center', 'right'];
             const lineStyles = ['dashed', 'solid', 'double'];
-            
+            const metaColStyles = ['1col', '2col'];
+            const tableStyles = ['standard', 'dots', 'boxed'];
+            const stubStyles = ['none', 'circle-notches'];
+            const watermarks = ['堂食', 'PAID', '预览', 'COUPON', 'VIP', 'TEST', ''];
+
             receiptElements.forEach(el => {
-                // 1. 随机打乱文本、标题组件
                 if (el.type === 'h1' || el.type === 'h2' || el.type === 'text') {
-                    // 随机对齐方式
                     el.align = alignStyles[Math.floor(Math.random() * alignStyles.length)];
-                    // 随机微调字号大小 (安全阈值区间)
                     const baseSize = el.type === 'h1' ? 24 : (el.type === 'h2' ? 17 : 13);
-                    el.size = baseSize + (Math.floor(Math.random() * 5) - 2); // 随机 -2px 到 +2px
-                    // 随机字距舒张
+                    el.size = baseSize + (Math.floor(Math.random() * 5) - 2); 
                     el.extraSpacing = Math.random() > 0.5;
-                    // 随机字重
                     if (el.type === 'text') {
                         el.weight = Math.random() > 0.8 ? 'bold' : 'normal';
                     }
                 } 
-                // 2. 随机打乱分割线
                 else if (el.type === 'line') {
                     el.lineStyle = lineStyles[Math.floor(Math.random() * lineStyles.length)];
                 }
-                // 3. 随机微调组件类高度
                 else if (el.type === 'barcode') {
-                    el.barcodeHeight = 30 + Math.floor(Math.random() * 30); // 30px ~ 60px
-                    el.displayValue = Math.random() > 0.3; // 随机是否在条码下方附带编号
+                    el.barcodeHeight = 30 + Math.floor(Math.random() * 30); 
+                    el.displayValue = Math.random() > 0.3; 
                 }
                 else if (el.type === 'qrcode') {
-                    el.qrcodeSize = 75 + Math.floor(Math.random() * 40); // 75px ~ 115px
+                    el.qrcodeSize = 75 + Math.floor(Math.random() * 40); 
                 }
             });
 
+            // 智能重组宏观物理属性
+            globalMetadataCols = metaColStyles[Math.floor(Math.random() * metaColStyles.length)];
+            globalTableStyle = tableStyles[Math.floor(Math.random() * tableStyles.length)];
+            globalTicketStub = stubStyles[Math.floor(Math.random() * stubStyles.length)];
+            
+            // 随机概率生成防伪水印
+            const wmRand = watermarks[Math.floor(Math.random() * watermarks.length)];
+            globalWatermarkText = wmRand;
+            globalWatermarkOpacity = wmRand ? (0.04 + Math.random() * 0.08) : 0.0;
+
             renderReceipt();
-            if (selectedElementId) {
-                selectElement(selectedElementId);
-            }
-            showToast('🎲 布局结构已随机重组！您可以一键多点几次，挑选最满意的特色排版。');
+            selectGlobalArchitect(); // 重绘控制面板
+            showToast('🎲 全局工艺及排版网格已随机洗牌变幻！');
         }
 
 
-        /* ================== 表格手动维护逻辑 ================== */
+        /* ================== 表格手动编辑数据表控制 ================== */
         function renderTableRowsEditor(el) {
             const container = document.getElementById('table-rows-editor-container');
+            if (!container) return;
             container.innerHTML = '';
             
             const headers = el.tableHeaders.split(',');
@@ -1210,7 +1448,8 @@
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el && el.type === 'table') {
-                el.tableHeaders = document.getElementById('prop-table-headers').value;
+                const propTableHeaders = document.getElementById('prop-table-headers');
+                if (propTableHeaders) el.tableHeaders = propTableHeaders.value;
                 renderReceipt();
                 renderTableRowsEditor(el);
             }
@@ -1253,12 +1492,13 @@
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el && el.type === 'table') {
-                el.tableCalc = document.getElementById('prop-table-calc').checked;
-                const labelWrapper = document.getElementById('table-calc-label-wrapper');
+                const propTableCalc = document.getElementById('prop-table-calc');
+                if (propTableCalc) el.tableCalc = propTableCalc.checked;
+                
                 if (el.tableCalc) {
-                    labelWrapper.classList.remove('hidden');
+                    setElementVisibility('table-calc-label-wrapper', true);
                 } else {
-                    labelWrapper.classList.add('hidden');
+                    setElementVisibility('table-calc-label-wrapper', false);
                 }
                 renderReceipt();
             }
@@ -1268,7 +1508,8 @@
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el && el.type === 'table') {
-                el.tableCalcLabel = document.getElementById('prop-table-calc-label').value;
+                const propTableCalcLabel = document.getElementById('prop-table-calc-label');
+                if (propTableCalcLabel) el.tableCalcLabel = propTableCalcLabel.value;
                 renderReceipt();
             }
         }
@@ -1364,6 +1605,7 @@
             const totalInput = document.getElementById('prop-table-gen-total');
             const countInput = document.getElementById('prop-table-gen-count');
             const themeSelect = document.getElementById('prop-table-gen-theme');
+            if (!totalInput || !countInput || !themeSelect) return;
 
             const totalPrice = parseFloat(totalInput.value) || 200;
             const count = parseInt(countInput.value) || 3;
@@ -1404,11 +1646,51 @@
             showToast('已完成账单商品重组打散！');
         }
 
+        // 获取列数据求和
+        function calculateSum(rows, idx) {
+            let sum = 0;
+            rows.forEach(row => {
+                const val = parseFloat(row[idx]);
+                if (!isNaN(val)) sum += val;
+            });
+            return sum;
+        }
 
-        /* ================== 小票核心物理渲染方法 ================== */
+
+        /* ================== 小票核心物理渲染方法 (物理工艺逻辑整合) ================== */
         function renderReceipt() {
+            const paper = document.getElementById('receipt-paper');
+            if (!paper) return;
             const holder = document.getElementById('receipt-content-holder');
+            if (!holder) return;
             holder.innerHTML = '';
+
+            // 清理已存在的切边notch、防伪水印等，防止无限重绘复制
+            const existingGarnish = paper.querySelectorAll('.stub-notch, #receipt-watermark');
+            existingGarnish.forEach(node => node.remove());
+
+            // 1. 物理工艺渲染：大型对角防伪水印
+            if (globalWatermarkText) {
+                const wmDiv = document.createElement('div');
+                wmDiv.id = "receipt-watermark";
+                wmDiv.className = "absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden z-0";
+                wmDiv.innerHTML = `
+                    <span class="text-7xl font-extrabold rotate-[-23deg] uppercase text-black tracking-[0.25em] leading-none select-none" style="opacity: ${globalWatermarkOpacity};">
+                        ${escapeHtml(globalWatermarkText)}
+                    </span>
+                `;
+                paper.appendChild(wmDiv);
+            }
+
+            // 2. 物理工艺渲染：打孔票根裁切口
+            if (globalTicketStub === 'circle-notches') {
+                const leftNotch = document.createElement('div');
+                leftNotch.className = "stub-notch no-print absolute top-1/2 -left-3.5 w-7 h-7 rounded-full bg-slate-100 border-r border-slate-300 shadow-[inset_-3px_0_4px_rgba(0,0,0,0.03)] z-10 pointer-events-none";
+                const rightNotch = document.createElement('div');
+                rightNotch.className = "stub-notch no-print absolute top-1/2 -right-3.5 w-7 h-7 rounded-full bg-slate-100 border-l border-slate-300 shadow-[inset_3px_0_4px_rgba(0,0,0,0.03)] z-10 pointer-events-none";
+                paper.appendChild(leftNotch);
+                paper.appendChild(rightNotch);
+            }
 
             if (receiptElements.length === 0) {
                 holder.innerHTML = `
@@ -1422,7 +1704,7 @@
 
             receiptElements.forEach(el => {
                 const outerDiv = document.createElement('div');
-                outerDiv.className = `receipt-card relative group p-1 rounded-md border border-dashed border-transparent hover:border-blue-400 hover:bg-blue-50/10 cursor-pointer transition-all`;
+                outerDiv.className = `receipt-card relative z-10 group p-1 rounded-md border border-dashed border-transparent hover:border-blue-400 hover:bg-blue-50/10 cursor-pointer transition-all`;
                 outerDiv.setAttribute('data-id', el.id);
                 outerDiv.onclick = (e) => {
                     e.stopPropagation();
@@ -1442,8 +1724,20 @@
                     innerHtml = `<h2 class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.3;">${escapeHtml(el.value)}</h2>`;
                 } 
                 else if (el.type === 'text') {
-                    const formattedText = escapeHtml(el.value).replace(/\n/g, '<br>');
-                    innerHtml = `<div class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.4;">${formattedText}</div>`;
+                    // 3. 并排网格工艺：如果开启2col且该组件包含多行信息，将自动拆解为并列双轨表格
+                    const lines = el.value.split('\n');
+                    if (globalMetadataCols === '2col' && lines.length > 1) {
+                        let gridHtml = `<div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-left ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.35;">`;
+                        lines.forEach(line => {
+                            gridHtml += `<div class="truncate border-b border-dashed border-slate-100 pb-0.5">${escapeHtml(line)}</div>`;
+                        });
+                        gridHtml += `</div>`;
+                        innerHtml = gridHtml;
+                    } else {
+                        // 传统行排版
+                        const formattedText = escapeHtml(el.value).replace(/\n/g, '<br>');
+                        innerHtml = `<div class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.4;">${formattedText}</div>`;
+                    }
                 } 
                 else if (el.type === 'line') {
                     if (el.lineStyle === 'dashed') {
@@ -1531,56 +1825,117 @@
                 else if (el.type === 'table') {
                     const headers = el.tableHeaders.split(',');
                     
-                    let tableHeaderHtml = `<thead class="border-b border-black"><tr>`;
-                    headers.forEach((hdr, colIdx) => {
-                        let align = "text-left";
-                        if (colIdx === headers.length - 1) align = "text-right";
-                        else if (colIdx > 0) align = "text-center";
-                        tableHeaderHtml += `<th class="py-1 ${align} font-bold text-xs">${escapeHtml(hdr)}</th>`;
-                    });
-                    tableHeaderHtml += `</tr></thead>`;
-
-                    let tableRowsHtml = `<tbody>`;
-                    let autoSum = 0;
-                    el.tableRows.forEach(row => {
-                        tableRowsHtml += `<tr class="border-b border-dashed border-slate-100 last:border-0">`;
+                    // 4. 明细表格风格渲染：如果是 Dotted Classic (点阵连线风格)
+                    if (globalTableStyle === 'dots') {
+                        let tableHtml = `<div class="my-2.5 space-y-1.5 w-full">`;
+                        // 表头
+                        tableHtml += `<div class="flex justify-between font-bold text-xs border-b border-black pb-1.5 mb-1 text-slate-800">`;
+                        tableHtml += `<span>${headers[0] || '项目'}</span>`;
+                        tableHtml += `<span>${headers[headers.length - 1] || '金额'}</span>`;
+                        tableHtml += `</div>`;
+                        // 表体行
+                        el.tableRows.forEach(row => {
+                            let name = row[0] || '';
+                            let qty = row[1] || '';
+                            let price = row[2] || '';
+                            let total = row[row.length - 1] || '';
+                            
+                            // 针对服装店特色行宽特殊兼容 [货号品项, 单价, 数量, 单位, 小计]
+                            if (el.tableHeaders.includes("货号品项")) {
+                                name = row[0] || '';
+                                qty = row[2] || '';
+                                price = row[1] || '';
+                                total = row[4] || '';
+                            }
+                            
+                            tableHtml += `
+                                <div class="flex justify-between items-baseline text-xs">
+                                    <span class="max-w-[60%] truncate font-medium">${name} <span class="text-[10px] text-slate-500 font-normal">x${qty}</span></span>
+                                    <span class="flex-grow border-b border-dotted border-black/35 mx-1.5"></span>
+                                    <span class="font-semibold">${total}</span>
+                                </div>
+                            `;
+                        });
+                        // 开启求和汇总
+                        if (el.tableCalc) {
+                            const sumVal = calculateSum(el.tableRows, el.tableHeaders.split(',').length - 1);
+                            tableHtml += `
+                                <div class="border-t border-black pt-1.5 mt-2 flex justify-between font-bold text-xs">
+                                    <span>${escapeHtml(el.tableCalcLabel || '应收合计:')}</span>
+                                    <span>${sumVal.toFixed(2)}</span>
+                                </div>
+                            `;
+                        }
+                        tableHtml += `</div>`;
+                        innerHtml = tableHtml;
+                    } 
+                    else {
+                        // 构建标准 Table
+                        let tableHeaderHtml = `<thead class="border-b border-black"><tr>`;
                         headers.forEach((hdr, colIdx) => {
                             let align = "text-left";
                             if (colIdx === headers.length - 1) align = "text-right";
                             else if (colIdx > 0) align = "text-center";
-                            
-                            const cellValue = row[colIdx] || '';
-                            tableRowsHtml += `<td class="py-1 ${align} text-xs">${escapeHtml(cellValue)}</td>`;
-
-                            if (el.tableCalc && colIdx === headers.length - 1) {
-                                const numericVal = parseFloat(cellValue);
-                                if (!isNaN(numericVal)) autoSum += numericVal;
-                            }
+                            tableHeaderHtml += `<th class="py-1 ${align} font-bold text-xs">${escapeHtml(hdr)}</th>`;
                         });
-                        tableRowsHtml += `</tr>`;
-                    });
-                    tableRowsHtml += `</tbody>`;
+                        tableHeaderHtml += `</tr></thead>`;
 
-                    let tableFooterHtml = '';
-                    if (el.tableCalc && el.tableRows.length > 0) {
-                        const calcLabel = el.tableCalcLabel || '应收合计:';
-                        tableFooterHtml = `
-                            <tfoot>
-                                <tr class="border-t border-black font-bold">
-                                    <td colspan="${headers.length - 1}" class="py-1.5 text-left text-xs">${escapeHtml(calcLabel)}</td>
-                                    <td class="py-1.5 text-right text-xs">${autoSum.toFixed(2)}</td>
-                                </tr>
-                            </tfoot>
-                        `;
+                        let tableRowsHtml = `<tbody>`;
+                        let autoSum = 0;
+                        el.tableRows.forEach(row => {
+                            tableRowsHtml += `<tr class="border-b border-dashed border-slate-100 last:border-0">`;
+                            headers.forEach((hdr, colIdx) => {
+                                let align = "text-left";
+                                if (colIdx === headers.length - 1) align = "text-right";
+                                else if (colIdx > 0) align = "text-center";
+                                
+                                const cellValue = row[colIdx] || '';
+                                tableRowsHtml += `<td class="py-1 ${align} text-xs">${escapeHtml(cellValue)}</td>`;
+
+                                if (el.tableCalc && colIdx === headers.length - 1) {
+                                    const numericVal = parseFloat(cellValue);
+                                    if (!isNaN(numericVal)) autoSum += numericVal;
+                                }
+                            });
+                            tableRowsHtml += `</tr>`;
+                        });
+                        tableRowsHtml += `</tbody>`;
+
+                        let tableFooterHtml = '';
+                        if (el.tableCalc && el.tableRows.length > 0) {
+                            const calcLabel = el.tableCalcLabel || '应收合计:';
+                            tableFooterHtml = `
+                                <tfoot>
+                                    <tr class="border-t border-black font-bold">
+                                        <td colspan="${headers.length - 1}" class="py-1.5 text-left text-xs">${escapeHtml(calcLabel)}</td>
+                                        <td class="py-1.5 text-right text-xs">${autoSum.toFixed(2)}</td>
+                                    </tr>
+                                </tfoot>
+                            `;
+                        }
+
+                        // 如果是 Boxed Card (卡片封闭边框风格)
+                        if (globalTableStyle === 'boxed') {
+                            innerHtml = `
+                                <div class="border-2 border-black p-2.5 my-2.5 rounded-sm bg-white/40">
+                                    <table class="w-full text-left">
+                                        ${tableHeaderHtml}
+                                        ${tableRowsHtml}
+                                        ${tableFooterHtml}
+                                    </table>
+                                </div>
+                            `;
+                        } else {
+                            // 默认标准平展网格
+                            innerHtml = `
+                                <table class="w-full text-left my-2">
+                                    ${tableHeaderHtml}
+                                    ${tableRowsHtml}
+                                    ${tableFooterHtml}
+                                </table>
+                            `;
+                        }
                     }
-
-                    innerHtml = `
-                        <table class="w-full text-left my-2">
-                            ${tableHeaderHtml}
-                            ${tableRowsHtml}
-                            ${tableFooterHtml}
-                        </table>
-                    `;
                 } 
                 else if (el.type === 'image') {
                     innerHtml = `
@@ -1620,15 +1975,17 @@
                 else if (el.type === 'qrcode') {
                     try {
                         const qrDiv = document.getElementById(`canvas-qrcode-${el.id}`);
-                        qrDiv.innerHTML = '';
-                        new QRCode(qrDiv, {
-                            text: el.value,
-                            width: el.qrcodeSize,
-                            height: el.qrcodeSize,
-                            colorDark : "#000000",
-                            colorLight : "#ffffff",
-                            correctLevel : QRCode.CorrectLevel.M
-                        });
+                        if (qrDiv) {
+                            qrDiv.innerHTML = '';
+                            new QRCode(qrDiv, {
+                                text: el.value,
+                                width: el.qrcodeSize,
+                                height: el.qrcodeSize,
+                                colorDark : "#000000",
+                                colorLight : "#ffffff",
+                                correctLevel : QRCode.CorrectLevel.M
+                            });
+                        }
                     } catch (err) {
                         console.error("二维码生成错误: ", err);
                     }
@@ -1672,11 +2029,11 @@
 
         /* ================== 经典模板载入逻辑 ================== */
         function showTemplatesModal() {
-            document.getElementById('templates-modal').classList.remove('hidden');
+            setElementVisibility('templates-modal', true);
         }
 
         function hideTemplatesModal() {
-            document.getElementById('templates-modal').classList.add('hidden');
+            setElementVisibility('templates-modal', false);
         }
 
         function escapeHtml(string) {
@@ -1716,10 +2073,16 @@
                     createNewElement('text', '买单:  209.00\n编号1', { align: 'left', size: 13 }),
                     createNewElement('text', '谢谢惠顾，欢迎再次光临!', { align: 'center', size: 12, extraSpacing: true })
                 ];
+                // 工艺默认复位
+                globalWatermarkText = "";
+                globalWatermarkOpacity = 0.0;
+                globalMetadataCols = "1col";
+                globalTableStyle = "standard";
+                globalTicketStub = "none";
                 setPaperWidth('58mm');
             } 
             else if (type === 'restaurant_preview') {
-                // 新增：完美还原 image_bd51e9 消费预览单
+                // 完美还原 image_bd51e9 消费预览单
                 receiptElements = [
                     createNewElement('h2', '消费预览单', { size: 18, weight: 'bold', align: 'center' }),
                     createNewElement('h1', 'xxx饭店', { size: 24, weight: 'bold', align: 'center' }),
@@ -1735,7 +2098,7 @@
                             ["红烧肉", "1", "56", "56"],
                             ["小炒鸡", "1", "78", "78"]
                         ],
-                        tableCalc: false // 同样采用下方精细分级汇总文字，以精准匹配图片
+                        tableCalc: false 
                     }),
                     createNewElement('line', '', { lineStyle: 'dashed' }),
                     createNewElement('text', '  菜品价格合计:                                   238\n  订单金额:                                         238', { align: 'left', size: 14 }),
@@ -1743,6 +2106,12 @@
                     createNewElement('line', '', { lineStyle: 'dashed' }),
                     createNewElement('text', '下单人: 15\n2025年02月13日\n打印人: XXX\n2025年02月13日', { align: 'left', size: 13 })
                 ];
+                // 工艺复位
+                globalWatermarkText = "堂食 15";
+                globalWatermarkOpacity = 0.08;
+                globalMetadataCols = "1col";
+                globalTableStyle = "standard";
+                globalTicketStub = "none";
                 setPaperWidth('58mm');
             }
             else if (type === 'clothes') {
@@ -1765,6 +2134,12 @@
                     createNewElement('text', '商品如有质量问题7天内凭票退换', { align: 'center', weight: 'bold', size: 14 }),
                     createNewElement('text', '联系电话: 001-123456789\n营业时间: 9:00—22:30', { align: 'left', size: 12 })
                 ];
+                // 自动搭配封闭边框卡片 + 半圆票根切口，服装店逼格直接拉满
+                globalWatermarkText = "PAID";
+                globalWatermarkOpacity = 0.06;
+                globalMetadataCols = "2col";
+                globalTableStyle = "boxed";
+                globalTicketStub = "circle-notches";
                 setPaperWidth('58mm');
             } 
             else if (type === 'market') {
@@ -1787,14 +2162,25 @@
                     createNewElement('text', '欢迎扫描下方二维码进入会员体系\n尊享多重积分兑换！', { align: 'center', size: 11 }),
                     createNewElement('qrcode', 'https://www.baidu.com', { qrcodeSize: 90 })
                 ];
+                globalWatermarkText = "";
+                globalWatermarkOpacity = 0.0;
+                globalMetadataCols = "2col";
+                globalTableStyle = "standard";
+                globalTicketStub = "none";
                 setPaperWidth('80mm');
             } 
             else if (type === 'blank') {
                 receiptElements = [];
+                globalWatermarkText = "";
+                globalWatermarkOpacity = 0.0;
+                globalMetadataCols = "1col";
+                globalTableStyle = "standard";
+                globalTicketStub = "none";
                 setPaperWidth('58mm');
             }
 
             renderReceipt();
+            selectGlobalArchitect(); // 重置并刷新属性台
             showToast('模板载入成功！');
         }
 
@@ -1809,6 +2195,8 @@
                 window.print();
                 if (tempSelected) {
                     selectElement(tempSelected);
+                } else {
+                    selectGlobalArchitect();
                 }
             }, 300);
         }
