@@ -95,7 +95,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-lg tracking-wide">智能热敏小票排版设计器</h1>
-                <p class="text-xs text-slate-400">Smart Receipt Studio v3.0 (智能双引擎版)</p>
+                <p class="text-xs text-slate-400">Smart Receipt Studio v3.5 (物理权重算账引擎版)</p>
             </div>
         </div>
         
@@ -468,7 +468,7 @@
                     <div class="border border-blue-100 bg-blue-50/50 rounded-xl p-3 shadow-sm">
                         <h4 class="text-xs font-bold text-blue-700 flex items-center mb-2.5">
                             <i data-lucide="sparkles" class="w-4 h-4 mr-1 text-blue-600 animate-pulse"></i>
-                            <span>智能商品随机重组</span>
+                            <span>智能商品随机重组 (物理权重算法)</span>
                         </h4>
                         <div class="space-y-2.5 text-xs">
                             <div>
@@ -661,32 +661,136 @@
 
     <!-- 业务逻辑脚本 -->
     <script>
-        // 核心随机生成商品字典配置
-        const PRODUCT_THEMES = {
+        // 💡 物理有界权重分配算法专用的高度结构化字典配置 (深度扩充硬菜、名品及高端奢侈品项)
+        const REALISTIC_THEMES = {
+            restaurant: {
+                staple: {
+                    items: ["米饭", "精品小笼包", "手工大水饺", "扬州什锦炒饭", "老北京麻酱烧饼", "金银小小馒头"],
+                    min: 2, max: 15, defaultPrice: 4
+                },
+                veggie: {
+                    items: ["清炒空心菜", "香菇油麦菜", "地三鲜", "酸辣土豆丝", "蒜蓉西兰花", "干煸四季豆", "手撕包菜", "清爽拍黄瓜", "白灼清甜菜心"],
+                    min: 12, max: 32, defaultPrice: 18
+                },
+                small_meat: {
+                    items: ["湖南小炒肉", "尖椒炒肥肠", "宫保鸡丁", "回锅肉", "小炒黄牛肉", "木须肉", "鱼香肉丝", "经典麻婆豆腐"],
+                    min: 18, max: 48, defaultPrice: 32
+                },
+                large_meat: {
+                    items: ["招牌北京烤鸭", "剁椒鱼头", "秘制香辣烤鱼", "铁板黑椒牛肉", "大漠风味烤羊排", "清蒸野生鲈鱼", "麻辣小龙虾", "外婆红烧肉"],
+                    min: 48, max: 168, defaultPrice: 88
+                },
+                luxury: {
+                    items: ["至尊佛跳墙", "鲍汁辽参扣花胶", "炭烤秘制乳猪", "避风塘帝王蟹", "蒜蓉清蒸大龙虾", "尊享烤全羊(半只)"],
+                    min: 198, max: 1688, defaultPrice: 488
+                },
+                soup_drink: {
+                    items: ["酸梅汤", "鲜榨芒果汁", "燕京纯生啤酒", "西红柿鸡蛋汤", "养生草本凉茶", "椰子汁", "大理石排骨莲藕汤"],
+                    min: 5, max: 48, defaultPrice: 15
+                },
+                premium_wine: {
+                    items: ["飞天茅台53度", "52度五粮液(普五)", "国窖1573经典版", "奔富玛歌名酿红酒", "15年陈酿花雕"],
+                    min: 188, max: 2888, defaultPrice: 888
+                }
+            },
+            clothes: {
+                accessory: {
+                    items: ["纯棉防臭船袜(3双)", "简约真皮针扣腰带", "复古针织保暖冷帽", "户外冰丝防晒袖套"],
+                    min: 10, max: 59, defaultPrice: 35
+                },
+                tops: {
+                    items: ["夏季冰丝短袖T恤", "美式重磅棉打底衫", "圆领保暖针织羊毛衫", "秋冬时尚连帽卫衣", "复古水洗牛仔外套"],
+                    min: 39, max: 199, defaultPrice: 129
+                },
+                bottoms: {
+                    items: ["弹力直筒牛仔裤", "原色工装多袋长裤", "复古百褶半身裙", "透气网眼冰丝运动短裤"],
+                    min: 69, max: 229, defaultPrice: 149
+                },
+                heavy: {
+                    items: ["防风极寒保暖羽绒服", "韩版中长款风衣外套", "户外三合一防水冲锋衣", "高级手工羊毛呢大衣"],
+                    min: 199, max: 1299, defaultPrice: 499
+                },
+                luxury_brand: {
+                    items: ["联名款真丝刺绣大衣", "意式手工定制纯羊毛西装", "真皮高帮防泼水大黄靴", "经典奢华剪裁皮夹克"],
+                    min: 899, max: 4980, defaultPrice: 1980
+                }
+            },
+            electronics: {
+                cable_charger: {
+                    items: ["120W氮化镓多口快充", "高韧性五合一编织数据线", "车载无线重力磁吸充电架", "PD20W快充线套装"],
+                    min: 9, max: 49, defaultPrice: 35
+                },
+                peripherals: {
+                    items: ["无线静音双模鼠标", "便携重低音防水蓝牙音箱", "RGB背光机械游戏键盘", "高密度超大锁边鼠标垫"],
+                    min: 49, max: 399, defaultPrice: 150
+                },
+                smart_wear: {
+                    items: ["多功能智能运动手环", "主动降噪入耳式蓝牙耳机", "智能声控无线降噪麦克风"],
+                    min: 99, max: 899, defaultPrice: 299
+                },
+                display_heavy: {
+                    items: ["27英寸4K超清电竞显示器", "多功能人体工学电脑网椅", "高灵敏超轻防误触电容手写笔"],
+                    min: 199, max: 799, defaultPrice: 450
+                },
+                flagship_gadget: {
+                    items: ["5G双屏商务折叠手机", "电竞显卡RTX 4060Ti", "降噪头戴金标高保真耳机", "轻薄双触控手写笔记本"],
+                    min: 1099, max: 12999, defaultPrice: 3999
+                }
+            },
+            market: {
+                beverage: {
+                    items: ["无糖可口可乐500ml", "农夫山泉矿泉水500ml", "统一冰红茶500ml", "星巴克星冰乐"],
+                    min: 2, max: 18, defaultPrice: 4
+                },
+                snack: {
+                    items: ["乐事无限薯片(原味)", "德芙丝滑牛奶巧克力", "旺旺雪饼大礼包", "良品铺子手撕肉条"],
+                    min: 3, max: 129, defaultPrice: 15
+                },
+                daily: {
+                    items: ["维达超柔抽纸130抽*6", "高露洁防蛀洁白牙膏", "沙宣垂坠质感洗发露", "超能低泡洗衣液"],
+                    min: 3, max: 59, defaultPrice: 25
+                },
+                premium: {
+                    items: ["高档大红袍茶叶礼盒", "金典高钙纯牛奶12盒", "智利原瓶进口红葡萄酒", "苏格兰单麦威士忌"],
+                    min: 99, max: 899, defaultPrice: 299
+                }
+            }
+        };
+
+        // 💡 物理有界权重分配算法专用的元数据映射与分类大小上下限
+        const CATEGORIES_META = {
             restaurant: [
-                "招牌北京烤鸭", "香辣秘制烤鱼", "宫保鸡丁", "老坛酸菜鱼", "经典麻婆豆腐", 
-                "鱼香肉丝", "精品鲜肉小笼包", "外婆红烧肉", "蒜蓉粉丝蒸扇贝", "白灼清甜菜心", 
-                "冰镇杨梅酸梅汤", "经典皮蛋瘦肉粥", "手工大水饺", "芝士焗波士顿龙虾", 
-                "干煸大头菜", "东北地三鲜", "扬州什锦炒饭", "清蒸野生鲈鱼"
+                { id: 'staple', min: 2, max: 15, avg: 8 },
+                { id: 'veggie', min: 12, max: 32, avg: 20 },
+                { id: 'soup_drink', min: 5, max: 48, avg: 21 },
+                { id: 'small_meat', min: 18, max: 48, avg: 35 },
+                { id: 'large_meat', min: 48, max: 168, avg: 108 },
+                { id: 'luxury', min: 198, max: 1688, avg: 588 },
+                { id: 'premium_wine', min: 188, max: 2888, avg: 1200 }
             ],
             clothes: [
-                "夏季冰丝短袖T恤", "秋冬时尚连帽卫衣", "弹力直筒牛仔裤", "复古百褶半身裙", 
-                "圆领保暖针织羊毛衫", "商务抗皱直筒裤", "户外UPF50+防晒衣", "韩版中长款宽松风衣", 
-                "经典英伦真皮马丁靴", "纯棉长袖睡衣套装", "高弹减震跑步鞋", "防风极寒保暖羽绒服"
+                { id: 'accessory', min: 10, max: 59, avg: 30 },
+                { id: 'tops', min: 39, max: 199, avg: 100 },
+                { id: 'bottoms', min: 69, max: 229, avg: 130 },
+                { id: 'heavy', min: 199, max: 1299, avg: 550 },
+                { id: 'luxury_brand', min: 899, max: 4980, avg: 2200 }
             ],
             electronics: [
-                "ANC主动降噪蓝牙耳机", "20000mAh双向超级快充", "27英寸4K电竞显示器", "千兆双频双核路由器", 
-                "RGB背光机械游戏键盘", "无线静音双模鼠标", "便携重低音蓝牙音箱", "高韧性五合一数据线", 
-                "多功能智能运动手环", "全罩式降噪重低音耳机", "全金属折叠笔记本支架", "120W氮化镓多口充电器"
+                { id: 'cable_charger', min: 9, max: 49, avg: 25 },
+                { id: 'peripherals', min: 49, max: 399, avg: 150 },
+                { id: 'smart_wear', min: 99, max: 899, avg: 350 },
+                { id: 'display_heavy', min: 199, max: 799, avg: 450 },
+                { id: 'flagship_gadget', min: 1099, max: 12999, avg: 4500 }
             ],
             market: [
-                "农夫山泉矿泉水500ml", "乐事无限薯片(原味)", "德芙丝滑牛奶巧克力", "维达超柔抽纸130抽", 
-                "白猫去油高效洗洁精", "高露洁防蛀洁白牙膏", "沙宣垂坠质感洗发露", "无糖可口可乐330ml", 
-                "旺旺仙贝大礼包", "康师傅红烧牛肉面5包", "鲁花5S压榨花生油5L", "特仑苏纯牛奶250ml*12"
+                { id: 'beverage', min: 2, max: 18, avg: 8 },
+                { id: 'snack', min: 3, max: 129, avg: 35 },
+                { id: 'daily', min: 3, max: 59, avg: 25 },
+                { id: 'premium', min: 99, max: 899, avg: 450 }
             ]
         };
 
-        // 核心内存数据与小票全局物理架构属性
+        // 核心内存数据
         let receiptElements = [];
         let selectedElementId = null;
         let paperWidthMode = '58mm'; // '58mm' or '80mm'
@@ -1069,7 +1173,7 @@
                 const propTableCalc = document.getElementById('prop-table-calc');
                 if (propTableCalc) propTableCalc.checked = el.tableCalc;
                 
-                const labelWrapper = document.getElementById('table-calc-wrapper');
+                const labelWrapper = document.getElementById('table-calc-label-wrapper');
                 if (labelWrapper) {
                     if (el.tableCalc) {
                         labelWrapper.classList.remove('hidden');
@@ -1515,85 +1619,148 @@
         }
 
 
-        /* ================== 智能消费商品打散重组算法 ================== */
-        function generateRandomProducts(totalPrice, count, theme) {
-            const items = PRODUCT_THEMES[theme] || PRODUCT_THEMES.restaurant;
-            
-            let selectedNames = [];
-            let tempItems = [...items];
+        /* ================== 🧬 核心重构：全新智能有界物理权重平摊算法 ================== */
+        function generateRealisticPrices(totalPrice, count, theme) {
+            const sortedCats = CATEGORIES_META[theme].sort((a,b) => a.avg - b.avg);
+            const db = REALISTIC_THEMES[theme];
+
+            // 1. 根据不同场景定制一套符合生活经验的“初始天然分布比例”
+            let baseProportions = {
+                restaurant: ['staple', 'veggie', 'veggie', 'soup_drink', 'small_meat', 'small_meat', 'large_meat', 'large_meat', 'small_meat', 'large_meat'],
+                clothes: ['accessory', 'tops', 'tops', 'bottoms', 'bottoms', 'heavy', 'tops', 'bottoms', 'accessory', 'heavy'],
+                electronics: ['cable_charger', 'peripherals', 'peripherals', 'smart_wear', 'display_heavy', 'cable_charger', 'peripherals', 'smart_wear', 'display_heavy', 'cable_charger'],
+                market: ['beverage', 'beverage', 'snack', 'snack', 'daily', 'daily', 'snack', 'daily', 'beverage', 'snack']
+            };
+            let props = baseProportions[theme];
+            let picked = [];
             for (let i = 0; i < count; i++) {
-                if (tempItems.length === 0) tempItems = [...items]; 
-                const idx = Math.floor(Math.random() * tempItems.length);
-                selectedNames.push(tempItems.splice(idx, 1)[0]);
+                let catId = props[i % props.length];
+                let catMeta = sortedCats.find(c => c.id === catId);
+                picked.push(JSON.parse(JSON.stringify(catMeta)));
             }
 
-            let minVal = 1.00;
-            if (totalPrice / count < minVal) {
-                minVal = totalPrice / count / 2;
-                if (minVal < 0.01) minVal = 0.01;
-            }
+            // 2. 🧬 【大招：有界预算动态升级/降级补偿机制】
+            // 循环调节分配的品类组合，直到目标总金额 totalPrice 能够完美契合在这组菜品的 [最小总价之和, 最大总价之和] 物理边界之内！
+            let maxAdjustments = 150;
+            while (maxAdjustments > 0) {
+                let sumMin = picked.reduce((sum, c) => sum + c.min, 0);
+                let sumMax = picked.reduce((sum, c) => sum + c.max, 0);
 
-            let remaining = totalPrice - (count * minVal);
-            let shares = [];
-            
-            if (count > 1 && remaining > 0) {
-                let cuts = [];
-                for (let i = 0; i < count - 1; i++) {
-                    cuts.push(Math.random() * remaining);
+                // 如果目标总价在当前选配组合的上下限之内，完美通过！
+                if (totalPrice >= sumMin && totalPrice <= sumMax) {
+                    break;
                 }
-                cuts.sort((a, b) => a - b);
-                
-                let prev = 0;
-                for (let i = 0; i < cuts.length; i++) {
-                    shares.push(cuts[i] - prev);
-                    prev = cuts[i];
+
+                if (totalPrice < sumMin) {
+                    // 总预算低了：将目前最贵的菜降级为更便宜的主食或素菜
+                    let itemToDowngradeIdx = picked.findIndex(c => c.avg > sortedCats[0].avg);
+                    if (itemToDowngradeIdx !== -1) {
+                        let currentCat = picked[itemToDowngradeIdx];
+                        let currentRank = sortedCats.findIndex(c => c.id === currentCat.id);
+                        if (currentRank > 0) {
+                            picked[itemToDowngradeIdx] = JSON.parse(JSON.stringify(sortedCats[currentRank - 1]));
+                        }
+                    } else {
+                        break; // 已无法继续降级
+                    }
+                } else if (totalPrice > sumMax) {
+                    // 总预算高了：普通菜品已经撑不起这个总价了，必须把其中部分菜品升级为“高端硬菜”或“高端名酒”来合理吸纳超支预算！
+                    let itemToUpgradeIdx = picked.findIndex(c => c.avg < sortedCats[sortedCats.length - 1].avg);
+                    if (itemToUpgradeIdx !== -1) {
+                        let currentCat = picked[itemToUpgradeIdx];
+                        let currentRank = sortedCats.findIndex(c => c.id === currentCat.id);
+                        if (currentRank < sortedCats.length - 1) {
+                            picked[itemToUpgradeIdx] = JSON.parse(JSON.stringify(sortedCats[currentRank + 1]));
+                        }
+                    } else {
+                        break; // 已升级至最高奢华档次
+                    }
                 }
-                shares.push(remaining - prev);
-            } else {
-                shares = Array(count).fill(remaining / count);
+                maxAdjustments--;
             }
 
-            let prices = shares.map(share => Math.round((share + minVal) * 100) / 100);
-            
-            let currentSum = prices.reduce((a, b) => a + b, 0);
-            let diff = Math.round((totalPrice - currentSum) * 100) / 100;
-            if (diff !== 0) {
-                prices[prices.length - 1] = Math.round((prices[prices.length - 1] + diff) * 100) / 100;
-            }
-
-            prices = prices.map(p => p <= 0 ? 0.01 : p);
-
-            let tableRows = [];
-            prices.forEach((price, idx) => {
-                let qty = 1;
-                if (theme === 'restaurant' || theme === 'market') {
-                    qty = Math.floor(Math.random() * 2) + 1; 
+            // 3. 提取不重复的具体菜品名称/商品名
+            let finalProducts = [];
+            picked.forEach(cat => {
+                const catData = db[cat.id];
+                let itemName = catData.items[Math.floor(Math.random() * catData.items.length)];
+                
+                // 防重名
+                let limit = 0;
+                while (finalProducts.some(p => p.name === itemName) && limit < 15) {
+                    itemName = catData.items[Math.floor(Math.random() * catData.items.length)];
+                    limit++;
                 }
-                
-                let unitPrice = Math.round((price / qty) * 100) / 100;
-                let totalRowPrice = Math.round((unitPrice * qty) * 100) / 100;
-                
-                tableRows.push([
-                    selectedNames[idx],
-                    qty.toString(),
-                    unitPrice.toFixed(2),
-                    totalRowPrice.toFixed(2)
-                ]);
+
+                finalProducts.push({
+                    name: itemName,
+                    category: cat.id,
+                    min: cat.min,
+                    max: cat.max,
+                    price: 0
+                });
             });
 
-            let finalSum = tableRows.reduce((sum, row) => sum + parseFloat(row[3]), 0);
-            let finalDiff = Math.round((totalPrice - finalSum) * 100) / 100;
-            if (finalDiff !== 0) {
-                let lastRow = tableRows[tableRows.length - 1];
-                let lastQty = parseInt(lastRow[1]);
-                let correctedTotal = Math.round((parseFloat(lastRow[3]) + finalDiff) * 100) / 100;
-                if (correctedTotal < 0.01) correctedTotal = 0.01;
+            // 4. 计算分配插值比例，并对每个单品叠加不规则的价格弹性抖动因子
+            let sumMin = finalProducts.reduce((sum, p) => sum + p.min, 0);
+            let sumMax = finalProducts.reduce((sum, p) => sum + p.max, 0);
+            let t = (sumMax === sumMin) ? 0.5 : (totalPrice - sumMin) / (sumMax - sumMin);
+
+            finalProducts.forEach(p => {
+                // 基于插值的合理均价
+                let basePrice = p.min + t * (p.max - p.min);
+                // 🎲 注入价格不规则微调抖动 (-15% ~ +15%)
+                let jitter = 0.85 + Math.random() * 0.30;
+                p.price = basePrice * jitter;
                 
-                lastRow[3] = correctedTotal.toFixed(2);
-                lastRow[2] = (correctedTotal / lastQty).toFixed(2);
+                // 严格遵守各品类的物理底线与天花板封顶
+                if (p.price < p.min) p.price = p.min;
+                if (p.price > p.max) p.price = p.max;
+            });
+
+            // 5. 迭代平摊计算，确保账单无差异、上下限不溢出
+            let redistributeIter = 10;
+            while (redistributeIter > 0) {
+                let currentSum = finalProducts.reduce((sum, p) => sum + p.price, 0);
+                let diff = totalPrice - currentSum;
+                if (Math.abs(diff) < 0.05) break;
+
+                let elasticItems = finalProducts.filter(p => {
+                    if (diff > 0) return p.price < p.max;
+                    return p.price > p.min;
+                });
+
+                if (elasticItems.length === 0) {
+                    break;
+                }
+
+                let share = diff / elasticItems.length;
+                elasticItems.forEach(p => {
+                    p.price += share;
+                    if (p.price < p.min) p.price = p.min;
+                    if (p.price > p.max) p.price = p.max;
+                });
+                redistributeIter--;
             }
 
-            return tableRows;
+            // 6. 消除毫厘尾差
+            let roundedSum = finalProducts.reduce((sum, p) => sum + Math.round(p.price * 100) / 100, 0);
+            let finalDiff = totalPrice - roundedSum;
+            if (Math.abs(finalDiff) > 0.001) {
+                let absorber = finalProducts.find(p => {
+                    let testPrice = p.price + finalDiff;
+                    return testPrice >= p.min && testPrice <= p.max;
+                });
+                if (!absorber) {
+                    absorber = finalProducts.sort((a,b) => b.price - a.price)[0];
+                }
+                absorber.price += finalDiff;
+            }
+
+            return finalProducts.map(p => ({
+                name: p.name,
+                price: Math.max(0.01, Math.round(p.price * 100) / 100)
+            }));
         }
 
         // 覆盖/智能重组动作
@@ -1620,7 +1787,8 @@
                 return;
             }
 
-            const generatedRows = generateRandomProducts(totalPrice, count, theme);
+            // 🧬 调用全新的物理有界高精权重算法！
+            const realisticProducts = generateRealisticPrices(totalPrice, count, theme);
 
             let headers = "品名,数量,价格,金额";
             if (theme === 'clothes') {
@@ -1630,20 +1798,39 @@
             }
 
             el.tableHeaders = headers;
-            el.tableRows = generatedRows.map(row => {
+            el.tableRows = realisticProducts.map(p => {
+                let qty = 1;
+                // 餐饮美食和商超百货的米饭、配菜、小点，有概率生成单项数量大于 1 的情况
+                if (theme === 'restaurant' && p.name === "米饭") {
+                    qty = Math.floor(Math.random() * 3) + 1; // 1~3 碗饭
+                } else if ((theme === 'restaurant' || theme === 'market') && Math.random() > 0.75) {
+                    qty = 2;
+                }
+
+                let unitPrice = p.price / qty;
+                // 重新修正，防止出现 11.33 * 3 = 33.99 对不齐 34 块整的情况
+                let totalRowPrice = Math.round(unitPrice * qty * 100) / 100;
+                let diff = p.price - totalRowPrice;
+                if (Math.abs(diff) > 0) {
+                    unitPrice += diff / qty;
+                }
+
                 if (theme === 'clothes') {
-                    return [row[0], row[2], row[1], '件', row[3]];
+                    // 对应 [货号品项, 单价, 数量, 单位, 小计]
+                    return [p.name, unitPrice.toFixed(2), qty.toString(), '件', p.price.toFixed(2)];
                 } else if (theme === 'market') {
-                    return [row[0], row[2], row[1], row[3]];
+                    // 对应 [商品名称, 单价, 数量, 小计]
+                    return [p.name, unitPrice.toFixed(2), qty.toString(), p.price.toFixed(2)];
                 } else {
-                    return [row[0], row[1], row[2], row[3]];
+                    // 餐饮：品名, 数量, 价格, 金额
+                    return [p.name, qty.toString(), unitPrice.toFixed(2), p.price.toFixed(2)];
                 }
             });
             el.tableCalc = true;
 
             renderReceipt();
             selectElement(el.id);
-            showToast('已完成账单商品重组打散！');
+            showToast('已完成账单商品重组打散！价格完美符合各品类有界区间特征。');
         }
 
         // 获取列数据求和
