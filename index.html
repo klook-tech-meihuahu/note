@@ -95,7 +95,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-lg tracking-wide">智能热敏小票排版设计器</h1>
-                <p class="text-xs text-slate-400">Smart Receipt Studio v2.0</p>
+                <p class="text-xs text-slate-400">Smart Receipt Studio v2.6</p>
             </div>
         </div>
         
@@ -233,13 +233,14 @@
                 <!-- 添加消费表格 -->
                 <div>
                     <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2.5">数据与表格</h3>
-                    <button onclick="addTableElement()" class="w-full flex items-center justify-between p-3 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
+                    <button onclick="addTableElement()" class="w-full flex items-center justify-between p-3.5 border border-slate-100 hover:border-blue-200 rounded-xl hover:bg-slate-50 text-left transition">
                         <span class="flex items-center space-x-3">
                             <i data-lucide="table-properties" class="w-5 h-5 text-blue-600"></i>
                             <span class="text-xs font-semibold text-slate-700">添加明细消费表格</span>
                         </span>
                         <i data-lucide="plus" class="w-4 h-4 text-slate-400"></i>
                     </button>
+                    <p class="text-[10px] text-slate-400 leading-normal mt-2 px-1">💡 提示：添加表格后，点击表格即可在右侧属性面板一键随机生成、覆盖重构商品列表和设定总额。</p>
                 </div>
             </div>
 
@@ -382,8 +383,42 @@
 
                 <!-- 4. 表格类属性编辑器 -->
                 <div id="panel-editor-table" class="hidden space-y-4">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-500">明细数据编辑</span>
+                    
+                    <!-- 智能随机重组面板（移植整合到右侧控制台，直接修改当前清单商品） -->
+                    <div class="border border-blue-100 bg-blue-50/50 rounded-xl p-3 shadow-sm">
+                        <h4 class="text-xs font-bold text-blue-700 flex items-center mb-2.5">
+                            <i data-lucide="sparkles" class="w-4 h-4 mr-1 text-blue-600 animate-pulse"></i>
+                            <span>智能商品随机重组</span>
+                        </h4>
+                        <div class="space-y-2.5 text-xs">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 mb-1">消费目标总额 (元)</label>
+                                <input type="number" id="prop-table-gen-total" class="w-full p-2 border border-slate-200 rounded-lg outline-none bg-white font-semibold focus:border-blue-500">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">商品件数</label>
+                                    <input type="number" id="prop-table-gen-count" min="1" max="25" class="w-full p-2 border border-slate-200 rounded-lg outline-none bg-white focus:border-blue-500">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold text-slate-500 mb-1">场景风格</label>
+                                    <select id="prop-table-gen-theme" class="w-full p-2 border border-slate-200 rounded-lg outline-none bg-white text-slate-700 focus:border-blue-500">
+                                        <option value="restaurant">餐饮美食</option>
+                                        <option value="clothes">服装鞋帽</option>
+                                        <option value="electronics">数码科技</option>
+                                        <option value="market">便利百货</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button onclick="triggerSmartRebuild()" class="w-full mt-1.5 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold rounded-lg transition shadow-md shadow-blue-500/10 flex items-center justify-center space-x-1">
+                                <i data-lucide="wand-2" class="w-3.5 h-3.5"></i>
+                                <span>重新生成并覆盖明细</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between border-t border-slate-100 pt-3">
+                        <span class="text-xs font-bold text-slate-500">手动数据编辑</span>
                         <button onclick="addTableRow()" class="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-xs font-bold flex items-center space-x-1">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                             <span>新增一行</span>
@@ -393,7 +428,7 @@
                     <!-- 表头设置 -->
                     <div>
                         <label class="block text-xs font-bold text-slate-500 mb-1.5">表头设置 (英文逗号分隔)</label>
-                        <input type="text" id="prop-table-headers" oninput="updateTableHeaders()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none">
+                        <input type="text" id="prop-table-headers" oninput="updateTableHeaders()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none focus:border-blue-500">
                     </div>
 
                     <!-- 行明细容器 -->
@@ -402,11 +437,16 @@
                     </div>
                     
                     <!-- 自动计算总额开关 -->
-                    <div class="border-t border-slate-100 pt-3">
+                    <div class="border-t border-slate-100 pt-3 space-y-3">
                         <label class="flex items-center space-x-2 text-xs font-semibold text-slate-700">
                             <input type="checkbox" id="prop-table-calc" onchange="toggleTableAutoCalculate()" class="rounded border-slate-300 text-blue-600">
                             <span>开启末列应收金额自动求和</span>
                         </label>
+                        <!-- 自定义合计文案选项 -->
+                        <div id="table-calc-label-wrapper" class="hidden">
+                            <label class="block text-xs font-bold text-slate-500 mb-1.5">合计栏文字标签</label>
+                            <input type="text" id="prop-table-calc-label" oninput="updateTableCalcLabel()" class="w-full p-2 text-xs border border-slate-200 rounded-lg outline-none" placeholder="应收合计:">
+                        </div>
                         <p class="text-[10px] text-slate-400 mt-1">开启后将计算表格最右一列金额的总数，并显示在底部</p>
                     </div>
                 </div>
@@ -448,7 +488,7 @@
 
     </div>
 
-    <!-- 自定义通知弹框 (代替 Alert) -->
+    <!-- 自定义通知弹框 -->
     <div id="toast" class="no-print fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-2 text-xs font-medium z-50 transition-all duration-300 opacity-0 translate-y-4 pointer-events-none">
         <i data-lucide="check-circle-2" class="text-green-400 w-4 h-4" id="toast-icon"></i>
         <span id="toast-message">操作成功!</span>
@@ -514,7 +554,7 @@
                     <div>
                         <div class="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded font-semibold inline-block mb-3">全新设计</div>
                         <h4 class="font-bold text-sm text-slate-800">空白画布</h4>
-                        <p class="text-xs text-slate-500 mt-1">清空当前，您可以从零自由发挥添加自定义文本和扫码元素组件。</p>
+                        <p class="text-xs text-slate-500 mt-1">清空当前，您可以从零自由发挥添加自定义文本 and 扫码元素组件。</p>
                     </div>
                     <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-600">
                         <span>立即应用</span>
@@ -528,6 +568,31 @@
 
     <!-- 业务逻辑脚本 -->
     <script>
+        // 核心随机生成商品字典配置
+        const PRODUCT_THEMES = {
+            restaurant: [
+                "招牌北京烤鸭", "香辣秘制烤鱼", "宫保鸡丁", "老坛酸菜鱼", "经典麻婆豆腐", 
+                "鱼香肉丝", "精品鲜肉小笼包", "外婆红烧肉", "蒜蓉粉丝蒸扇贝", "白灼清甜菜心", 
+                "冰镇杨梅酸梅汤", "经典皮蛋瘦肉粥", "手工大水饺", "芝士焗波士顿龙虾", 
+                "干煸大头菜", "东北地三鲜", "扬州什锦炒饭", "清蒸野生鲈鱼"
+            ],
+            clothes: [
+                "夏季冰丝短袖T恤", "秋冬时尚连帽卫衣", "弹力直筒牛仔裤", "复古百褶半身裙", 
+                "圆领保暖针织羊毛衫", "商务抗皱直筒裤", "户外UPF50+防晒衣", "韩版中长款宽松风衣", 
+                "经典英伦真皮马丁靴", "纯棉长袖睡衣套装", "高弹减震跑步鞋", "防风极寒保暖羽绒服"
+            ],
+            electronics: [
+                "ANC主动降噪蓝牙耳机", "20000mAh双向超级快充", "27英寸4K电竞显示器", "千兆双频双核路由器", 
+                "RGB背光机械游戏键盘", "无线静音双模鼠标", "便携重低音蓝牙音箱", "高韧性五合一数据线", 
+                "多功能智能运动手环", "全罩式降噪重低音耳机", "全金属折叠笔记本支架", "120W氮化镓多口充电器"
+            ],
+            market: [
+                "农夫山泉矿泉水500ml", "乐事无限薯片(原味)", "德芙丝滑牛奶巧克力", "维达超柔抽纸130抽", 
+                "白猫去油高效洗洁精", "高露洁防蛀洁白牙膏", "沙宣垂坠质感洗发露", "无糖可口可乐330ml", 
+                "旺旺仙贝大礼包", "康师傅红烧牛肉面5包", "鲁花5S压榨花生油5L", "特仑苏纯牛奶250ml*12"
+            ]
+        };
+
         // 核心内存数据
         let receiptElements = [];
         let selectedElementId = null;
@@ -588,7 +653,7 @@
             showToast(`已成功切换为 ${width} 纸宽`);
         }
 
-        // 切换效果预览 (针式打印感觉)
+        // 切换效果预览
         function toggleSimulation() {
             hasThermalSimulation = !hasThermalSimulation;
             const paper = document.getElementById('receipt-paper');
@@ -624,6 +689,7 @@
                 tableHeaders: "品名,数量,价格,金额",
                 tableRows: [["示范商品", "1", "10", "10"]],
                 tableCalc: true,
+                tableCalcLabel: "应收合计:",
                 // 图片宽度属性
                 imageWidth: 120,
                 ...extra
@@ -737,7 +803,7 @@
             }
         }
 
-        // 选中某一个元素节点
+        // 选中某一个元素节点并渲染其属性控制
         function selectElement(id) {
             selectedElementId = id;
             
@@ -814,6 +880,39 @@
                 document.getElementById('panel-editor-table').classList.remove('hidden');
                 document.getElementById('prop-table-headers').value = el.tableHeaders;
                 document.getElementById('prop-table-calc').checked = el.tableCalc;
+                
+                const labelWrapper = document.getElementById('table-calc-label-wrapper');
+                if (el.tableCalc) {
+                    labelWrapper.classList.remove('hidden');
+                } else {
+                    labelWrapper.classList.add('hidden');
+                }
+                document.getElementById('prop-table-calc-label').value = el.tableCalcLabel || "应收合计:";
+
+                // 智能初始化右侧的“随机生成配置”，回显该表格的参数
+                let totalSum = 0;
+                const headers = el.tableHeaders.split(',');
+                const priceColIdx = headers.length - 1;
+                el.tableRows.forEach(row => {
+                    const priceVal = parseFloat(row[priceColIdx]);
+                    if (!isNaN(priceVal)) totalSum += priceVal;
+                });
+                if (totalSum <= 0) totalSum = 180; // 默认容错兜底
+
+                document.getElementById('prop-table-gen-total').value = Math.round(totalSum);
+                document.getElementById('prop-table-gen-count').value = el.tableRows.length || 3;
+
+                // 智能猜测场景风格
+                let guessedTheme = 'restaurant';
+                if (el.tableHeaders.includes("货号品项")) {
+                    guessedTheme = "clothes";
+                } else if (el.tableHeaders.includes("商品名称")) {
+                    guessedTheme = "market";
+                } else if (el.tableRows.some(row => PRODUCT_THEMES.electronics.includes(row[0]))) {
+                    guessedTheme = "electronics";
+                }
+                document.getElementById('prop-table-gen-theme').value = guessedTheme;
+                
                 renderTableRowsEditor(el);
             }
             else if (el.type === 'image') {
@@ -822,7 +921,7 @@
             }
         }
 
-        // 隐藏所有面板
+        // 隐藏所有属性面板
         function hideAllPanels() {
             document.getElementById('panel-empty-state').classList.remove('hidden');
             document.getElementById('panel-actions-wrapper').classList.add('hidden');
@@ -867,40 +966,36 @@
             }
 
             renderReceipt();
-            // 重新赋予选定框样式，防止重新渲染后失去光标样式
             const activeCard = document.querySelector(`.receipt-card[data-id="${selectedElementId}"]`);
             if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
         }
 
-        // 修改文字对齐方式属性
+        // 修改文字对齐方式
         function setAlign(alignment) {
             if (!selectedElementId) return;
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el) {
                 el.align = alignment;
                 updateSelectedElement();
-                // 重新渲染对齐状态按键样式
                 document.getElementById('btn-align-left').className = alignment === 'left' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
                 document.getElementById('btn-align-center').className = alignment === 'center' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
                 document.getElementById('btn-align-right').className = alignment === 'right' ? "py-1 flex justify-center rounded bg-white text-blue-600 shadow-sm transition" : "py-1 flex justify-center rounded text-slate-700 hover:bg-white transition";
             }
         }
 
-        // 调整小票元素物理位置 (上移/下移)
+        // 调整元素排版位置 (上移/下移)
         function moveCurrentElement(direction) {
             if (!selectedElementId) return;
             const index = receiptElements.findIndex(item => item.id === selectedElementId);
             if (index === -1) return;
 
             if (direction === 'up' && index > 0) {
-                // 上移
                 const temp = receiptElements[index];
                 receiptElements[index] = receiptElements[index - 1];
                 receiptElements[index - 1] = temp;
                 renderReceipt();
                 selectElement(selectedElementId);
             } else if (direction === 'down' && index < receiptElements.length - 1) {
-                // 下移
                 const temp = receiptElements[index];
                 receiptElements[index] = receiptElements[index + 1];
                 receiptElements[index + 1] = temp;
@@ -918,7 +1013,7 @@
             showToast('已删除该行组件');
         }
 
-        // 询问并清空小票
+        // 清空小票
         function confirmClearReceipt() {
             if (receiptElements.length === 0) {
                 showToast('画布本身已是空态');
@@ -931,7 +1026,7 @@
         }
 
 
-        /* ================== 表格相关操作函数 ================== */
+        /* ================== 表格手动维护逻辑 ================== */
         function renderTableRowsEditor(el) {
             const container = document.getElementById('table-rows-editor-container');
             container.innerHTML = '';
@@ -942,8 +1037,7 @@
                 const rowDiv = document.createElement('div');
                 rowDiv.className = "p-2 bg-slate-50 border border-slate-200 rounded-lg space-y-2 relative group";
                 
-                // 行内表格每列输入控制
-                let gridHtml = `<div class="grid grid-cols-4 gap-1">`;
+                let gridHtml = `<div class="grid grid-cols-${headers.length} gap-1">`;
                 headers.forEach((hdr, colIndex) => {
                     const colVal = row[colIndex] || '';
                     gridHtml += `
@@ -955,7 +1049,6 @@
                 });
                 gridHtml += `</div>`;
                 
-                // 行删除按键
                 const deleteBtnHtml = `
                     <button onclick="deleteTableRow(${rowIndex})" class="absolute -top-1 -right-1 bg-red-100 hover:bg-red-200 text-red-600 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition shadow">
                         <i data-lucide="x" class="w-3.5 h-3.5"></i>
@@ -1016,8 +1109,163 @@
             const el = receiptElements.find(item => item.id === selectedElementId);
             if (el && el.type === 'table') {
                 el.tableCalc = document.getElementById('prop-table-calc').checked;
+                const labelWrapper = document.getElementById('table-calc-label-wrapper');
+                if (el.tableCalc) {
+                    labelWrapper.classList.remove('hidden');
+                } else {
+                    labelWrapper.classList.add('hidden');
+                }
                 renderReceipt();
             }
+        }
+
+        function updateTableCalcLabel() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (el && el.type === 'table') {
+                el.tableCalcLabel = document.getElementById('prop-table-calc-label').value;
+                renderReceipt();
+            }
+        }
+
+
+        /* ================== 右侧属性面板：智能商品随机重组算法 ================== */
+        function generateRandomProducts(totalPrice, count, theme) {
+            const items = PRODUCT_THEMES[theme] || PRODUCT_THEMES.restaurant;
+            
+            // 1. 提取不重复的词库商品名
+            let selectedNames = [];
+            let tempItems = [...items];
+            for (let i = 0; i < count; i++) {
+                if (tempItems.length === 0) tempItems = [...items]; 
+                const idx = Math.floor(Math.random() * tempItems.length);
+                selectedNames.push(tempItems.splice(idx, 1)[0]);
+            }
+
+            // 2. 将目标总价拆解为 count 个随机价格份额
+            let minVal = 1.00;
+            if (totalPrice / count < minVal) {
+                minVal = totalPrice / count / 2;
+                if (minVal < 0.01) minVal = 0.01;
+            }
+
+            let remaining = totalPrice - (count * minVal);
+            let shares = [];
+            
+            if (count > 1 && remaining > 0) {
+                let cuts = [];
+                for (let i = 0; i < count - 1; i++) {
+                    cuts.push(Math.random() * remaining);
+                }
+                cuts.sort((a, b) => a - b);
+                
+                let prev = 0;
+                for (let i = 0; i < cuts.length; i++) {
+                    shares.push(cuts[i] - prev);
+                    prev = cuts[i];
+                }
+                shares.push(remaining - prev);
+            } else {
+                shares = Array(count).fill(remaining / count);
+            }
+
+            let prices = shares.map(share => Math.round((share + minVal) * 100) / 100);
+            
+            // 消除四舍五入尾差
+            let currentSum = prices.reduce((a, b) => a + b, 0);
+            let diff = Math.round((totalPrice - currentSum) * 100) / 100;
+            if (diff !== 0) {
+                prices[prices.length - 1] = Math.round((prices[prices.length - 1] + diff) * 100) / 100;
+            }
+
+            prices = prices.map(p => p <= 0 ? 0.01 : p);
+
+            // 3. 构造数据包并转换
+            let tableRows = [];
+            prices.forEach((price, idx) => {
+                let qty = 1;
+                if (theme === 'restaurant' || theme === 'market') {
+                    qty = Math.floor(Math.random() * 2) + 1; 
+                }
+                
+                let unitPrice = Math.round((price / qty) * 100) / 100;
+                let totalRowPrice = Math.round((unitPrice * qty) * 100) / 100;
+                
+                tableRows.push([
+                    selectedNames[idx],
+                    qty.toString(),
+                    unitPrice.toFixed(2),
+                    totalRowPrice.toFixed(2)
+                ]);
+            });
+
+            // 最终物理微调：确保累加无误差
+            let finalSum = tableRows.reduce((sum, row) => sum + parseFloat(row[3]), 0);
+            let finalDiff = Math.round((totalPrice - finalSum) * 100) / 100;
+            if (finalDiff !== 0) {
+                let lastRow = tableRows[tableRows.length - 1];
+                let lastQty = parseInt(lastRow[1]);
+                let correctedTotal = Math.round((parseFloat(lastRow[3]) + finalDiff) * 100) / 100;
+                if (correctedTotal < 0.01) correctedTotal = 0.01;
+                
+                lastRow[3] = correctedTotal.toFixed(2);
+                lastRow[2] = (correctedTotal / lastQty).toFixed(2);
+            }
+
+            return tableRows;
+        }
+
+        // 绑定在右侧属性面板的一键重组重洗动作
+        function triggerSmartRebuild() {
+            if (!selectedElementId) return;
+            const el = receiptElements.find(item => item.id === selectedElementId);
+            if (!el || el.type !== 'table') return;
+
+            const totalInput = document.getElementById('prop-table-gen-total');
+            const countInput = document.getElementById('prop-table-gen-count');
+            const themeSelect = document.getElementById('prop-table-gen-theme');
+
+            const totalPrice = parseFloat(totalInput.value) || 200;
+            const count = parseInt(countInput.value) || 3;
+            const theme = themeSelect.value;
+
+            if (totalPrice <= 0) {
+                showToast('请输入有效的消费总额', true);
+                return;
+            }
+            if (count <= 0 || count > 25) {
+                showToast('重组商品件数建议在 1 到 25 之间', true);
+                return;
+            }
+
+            const generatedRows = generateRandomProducts(totalPrice, count, theme);
+
+            // 不同行业定制表头文案
+            let headers = "品名,数量,价格,金额";
+            if (theme === 'clothes') {
+                headers = "货号品项,单价,数量,单位,小计";
+            } else if (theme === 'market') {
+                headers = "商品名称,单价,数量,小计";
+            }
+
+            el.tableHeaders = headers;
+            el.tableRows = generatedRows.map(row => {
+                if (theme === 'clothes') {
+                    // 对应 [货号品项, 单价, 数量, 单位, 小计]
+                    return [row[0], row[2], row[1], '件', row[3]];
+                } else if (theme === 'market') {
+                    // 对应 [商品名称, 单价, 数量, 小计]
+                    return [row[0], row[2], row[1], row[3]];
+                } else {
+                    // 餐饮：品名, 数量, 价格, 金额
+                    return [row[0], row[1], row[2], row[3]];
+                }
+            });
+            el.tableCalc = true;
+
+            renderReceipt();
+            selectElement(el.id);
+            showToast('已完成账单商品重组打散！');
         }
 
 
@@ -1036,7 +1284,6 @@
                 return;
             }
 
-            // 依据内存列表循环渲染每个块
             receiptElements.forEach(el => {
                 const outerDiv = document.createElement('div');
                 outerDiv.className = `receipt-card relative group p-1 rounded-md border border-dashed border-transparent hover:border-blue-400 hover:bg-blue-50/10 cursor-pointer transition-all`;
@@ -1046,7 +1293,6 @@
                     selectElement(el.id);
                 };
 
-                // 文字对齐、大小、间距转换
                 const alignClass = `text-${el.align}`;
                 const boldClass = el.weight === 'bold' ? 'font-bold' : 'font-normal';
                 const extraSpacingClass = el.extraSpacing ? 'tracking-[0.15em]' : 'tracking-normal';
@@ -1060,7 +1306,6 @@
                     innerHtml = `<h2 class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.3;">${escapeHtml(el.value)}</h2>`;
                 } 
                 else if (el.type === 'text') {
-                    // 支持换行
                     const formattedText = escapeHtml(el.value).replace(/\n/g, '<br>');
                     innerHtml = `<div class="${alignClass} ${boldClass} ${extraSpacingClass}" style="font-size: ${el.size}px; line-height: 1.4;">${formattedText}</div>`;
                 } 
@@ -1091,7 +1336,6 @@
                 else if (el.type === 'pdf417') {
                     innerHtml = `
                         <div class="flex flex-col items-center my-1.5 opacity-95">
-                            <!-- 模拟矢量 PDF417 条码 -->
                             <svg width="220" height="45" viewBox="0 0 220 45" xmlns="http://www.w3.org/2000/svg" class="shape-rendering-crisp">
                                 <rect width="220" height="45" fill="white"/>
                                 <rect x="5" y="5" width="4" height="35" fill="black"/>
@@ -1124,14 +1368,12 @@
                 else if (el.type === 'datamatrix') {
                     innerHtml = `
                         <div class="flex flex-col items-center my-1.5">
-                            <!-- 模拟 DataMatrix 二维矩阵码 -->
                             <svg width="65" height="65" viewBox="0 0 65 65" xmlns="http://www.w3.org/2000/svg" class="shape-rendering-crisp">
                                 <rect width="65" height="65" fill="white"/>
                                 <rect x="5" y="5" width="55" height="5" fill="black"/>
                                 <rect x="5" y="5" width="5" height="55" fill="black"/>
                                 <rect x="5" y="55" width="55" height="5" fill="#000"/>
                                 <rect x="55" y="5" width="5" height="55" fill="#000"/>
-                                <!-- 内部数据单元 -->
                                 <rect x="15" y="15" width="5" height="5" fill="black"/>
                                 <rect x="25" y="15" width="5" height="5" fill="black"/>
                                 <rect x="35" y="15" width="5" height="5" fill="black"/>
@@ -1174,7 +1416,6 @@
                             const cellValue = row[colIdx] || '';
                             tableRowsHtml += `<td class="py-1 ${align} text-xs">${escapeHtml(cellValue)}</td>`;
 
-                            // 如果开启了自动算账，对末尾一列累加
                             if (el.tableCalc && colIdx === headers.length - 1) {
                                 const numericVal = parseFloat(cellValue);
                                 if (!isNaN(numericVal)) autoSum += numericVal;
@@ -1184,13 +1425,13 @@
                     });
                     tableRowsHtml += `</tbody>`;
 
-                    // 自动计算汇总底部
                     let tableFooterHtml = '';
                     if (el.tableCalc && el.tableRows.length > 0) {
+                        const calcLabel = el.tableCalcLabel || '应收合计:';
                         tableFooterHtml = `
                             <tfoot>
                                 <tr class="border-t border-black font-bold">
-                                    <td colspan="${headers.length - 1}" class="py-1.5 text-left text-xs">应收合计:</td>
+                                    <td colspan="${headers.length - 1}" class="py-1.5 text-left text-xs">${escapeHtml(calcLabel)}</td>
                                     <td class="py-1.5 text-right text-xs">${autoSum.toFixed(2)}</td>
                                 </tr>
                             </tfoot>
@@ -1213,7 +1454,6 @@
                     `;
                 }
 
-                // 添加快捷移动删除按钮覆盖层 (仅在 hover 时可见)
                 const overlayHtml = `
                     <div class="no-print absolute top-1/2 -translate-y-1/2 right-1 hidden group-hover:flex items-center space-x-1 bg-white/90 shadow rounded-md px-1 py-0.5 border border-slate-200 z-10">
                         <button onclick="event.stopPropagation(); quickMoveElement('${el.id}', 'up')" class="p-1 hover:bg-slate-100 rounded text-slate-600" title="上移"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i></button>
@@ -1225,7 +1465,6 @@
                 outerDiv.innerHTML = innerHtml + overlayHtml;
                 holder.appendChild(outerDiv);
 
-                // 渲染后置逻辑：对条形码 / 二维码进行 JS 生成
                 if (el.type === 'barcode') {
                     try {
                         JsBarcode(`#canvas-barcode-${el.id}`, el.value, {
@@ -1260,10 +1499,8 @@
                 }
             });
 
-            // 重新刷新 Lucide 图标
             lucide.createIcons();
             
-            // 保持选中元素高亮
             if (selectedElementId) {
                 const activeCard = document.querySelector(`.receipt-card[data-id="${selectedElementId}"]`);
                 if (activeCard) activeCard.classList.add('border-blue-500', 'bg-blue-50/20');
@@ -1306,7 +1543,6 @@
             document.getElementById('templates-modal').classList.add('hidden');
         }
 
-        // 统一小票实体转义
         function escapeHtml(string) {
             return String(string).replace(/[&<>"']/g, function (s) {
                 return {
@@ -1319,13 +1555,12 @@
             });
         }
 
-        // 载入模板方法
+        // 载入内置模板
         function loadTemplate(type) {
             hideTemplatesModal();
             hideAllPanels();
             
             if (type === 'restaurant') {
-                // 完美还原 image_a1ba27 餐饮小票
                 receiptElements = [
                     createNewElement('h1', '×××饭店', { size: 26 }),
                     createNewElement('h2', '结账单', { size: 16 }),
@@ -1337,7 +1572,7 @@
                             ["四人套餐（位）", "1", "190", "190"],
                             ["黑啤", "1", "19", "19"]
                         ],
-                        tableCalc: false // 不使用默认求和，手动完美展现底部消费结构
+                        tableCalc: false 
                     }),
                     createNewElement('line', '', { lineStyle: 'solid' }),
                     createNewElement('text', '消费金额: 209.00     应收合计: 209.00', { align: 'left', weight: 'bold', size: 13 }),
@@ -1348,7 +1583,6 @@
                 setPaperWidth('58mm');
             } 
             else if (type === 'clothes') {
-                // 完美还原 image_a20be0 服装小票
                 receiptElements = [
                     createNewElement('text', '----------收据备份联----------', { align: 'center', size: 12 }),
                     createNewElement('h1', '收银小票', { size: 26 }),
@@ -1371,7 +1605,6 @@
                 setPaperWidth('58mm');
             } 
             else if (type === 'market') {
-                // 标准超市多商品购物清单 & 底部付款码
                 receiptElements = [
                     createNewElement('h1', '快达超市零售明细', { size: 22 }),
                     createNewElement('text', '单号: SO-2026-0523001\n收银员: 8021\n时间: 2026-05-23 13:28', { align: 'left', size: 11 }),
@@ -1384,7 +1617,8 @@
                             ["德芙黑巧克力", "12.00", "1", "12.00"],
                             ["特仑苏有机奶", "65.00", "1", "65.00"]
                         ],
-                        tableCalc: true
+                        tableCalc: true,
+                        tableCalcLabel: "应收合计:"
                     }),
                     createNewElement('line', '', { lineStyle: 'dashed' }),
                     createNewElement('text', '欢迎扫描下方二维码进入会员体系\n尊享多重积分兑换！', { align: 'center', size: 11 }),
@@ -1402,17 +1636,14 @@
         }
 
 
-        /* ================== 核心一键打印 ================== */
+        /* ================== 核心打印服务 ================== */
         function printReceipt() {
-            // 在打印前，临时取消选中的外框样式
             const tempSelected = selectedElementId;
             hideAllPanels();
             renderReceipt();
             
-            // 延时等待浏览器对重新渲染后的二维码条码完成渲染后再调起打印
             setTimeout(() => {
                 window.print();
-                // 恢复先前选中的节点
                 if (tempSelected) {
                     selectElement(tempSelected);
                 }
